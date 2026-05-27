@@ -2,7 +2,7 @@ const fs = require("fs");
 
 const { supabase } = require("../config/supabase");
 
-const readQuizCSV = require("../utils/csvReader");
+const readQuizCSV = require("../utils/csvQuizReader");
 
 // ======================================================
 // CREATE QUIZ FROM CSV
