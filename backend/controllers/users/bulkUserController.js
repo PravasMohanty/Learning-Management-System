@@ -1,4 +1,4 @@
-const { supabase } = require("../../config/supabaseClient");
+const { supabase } = require("../../config/supabase");
 
 const path = require("path");
 
@@ -128,8 +128,5 @@ const downloadCSVTemplate = async (req, res) => {
 
 module.exports = {
   downloadCSVTemplate,
-};
-
-module.exports = {
   createUsersFromCSV,
 };

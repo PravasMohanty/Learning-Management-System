@@ -1,12 +1,12 @@
 const { supabase } = require("../../config/supabase");
 
-const { sendEmail } = require("../../utils/mailSender");
+const sendEmail = require("../../utils/mailSender");
 
 const {
   approvalEmailTemplate,
   rejectionEmailTemplate,
   approvalFailedTemplate,
-} = require("../../utils/emailTemplates");
+} = require("../../utils/mailTemplates");
 
 // ======================================================
 // APPROVE STUDENT REGISTRATION REQUEST

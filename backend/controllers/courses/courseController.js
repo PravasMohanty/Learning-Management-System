@@ -377,6 +377,8 @@ const publishCourse = async (req, res) => {
   }
 };
 
+
+
 module.exports = {
   createCourse,
   getAllCourses,

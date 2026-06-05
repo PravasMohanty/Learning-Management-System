@@ -38,7 +38,7 @@ const readQuizCSV = async (filePath) => {
 
             correct_answer: values[5],
 
-            points: PROCESS.env.QUIZ_POINTS_PER_QUESTION || 10,
+            points: process.env.QUIZ_POINTS_PER_QUESTION || 10,
           });
         })
 

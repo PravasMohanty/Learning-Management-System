@@ -12,7 +12,7 @@ const {
   saveOTP,
   verifyOTP,
   deleteOTP,
-} = require("../../services/otpService");
+} = require("../../services/otpServices");
 
 
 // ======================================================
