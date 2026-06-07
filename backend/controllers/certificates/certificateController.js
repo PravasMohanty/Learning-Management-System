@@ -1,5 +1,5 @@
-const { supabase } = require("../config/supabase");
-const certificateService = require("../services/certificateService");
+const { supabase } = require("../../config/supabase");
+const certificateService = require("../../services/certificateService");
 
 /**
  * Generate Certificate
@@ -10,23 +10,23 @@ const generateCertificate = async (req, res) => {
     const { courseId } = req.params;
 
     // ==========================================
-    // CHECK ENROLLMENT
+    // CHECK PROGRESS
     // ==========================================
 
     const {
-      data: enrollment,
-      error: enrollmentError,
+      data: progress,
+      error: progressError,
     } = await supabase
-      .from("enrollments")
+      .from("course_progress")
       .select("*")
       .eq("student_id", studentId)
       .eq("course_id", courseId)
       .single();
 
-    if (enrollmentError || !enrollment) {
+    if (progressError || !progress) {
       return res.status(404).json({
         success: false,
-        message: "Enrollment not found",
+        message: "Course progress not found",
       });
     }
 
@@ -34,7 +34,7 @@ const generateCertificate = async (req, res) => {
     // CHECK COURSE COMPLETION
     // ==========================================
 
-    if (enrollment.progress < 100) {
+    if (progress.progress < 100) {
       return res.status(400).json({
         success: false,
         message: "Course not completed yet",
@@ -96,7 +96,7 @@ const generateCertificate = async (req, res) => {
     const pdfUrl =
       await certificateService.generateCertificatePdf({
         certificateId,
-        studentName: req.user.full_name,
+        studentName: req.user.name,
         studentEmail: req.user.email,
         courseName: course.title,
         issueDate: new Date(),
@@ -129,15 +129,15 @@ const generateCertificate = async (req, res) => {
     }
 
     // ==========================================
-    // UPDATE ENROLLMENT
+    // UPDATE PROGRESS
     // ==========================================
 
     await supabase
-      .from("enrollments")
+      .from("course_progress")
       .update({
         certificate_issued: true,
       })
-      .eq("id", enrollment.id);
+      .eq("id", progress.id);
 
     return res.status(201).json({
       success: true,

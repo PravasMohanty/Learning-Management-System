@@ -6,18 +6,17 @@ const {
   rejectStudentRequest,
 } = require("../controllers/requests/requestController");
 
-// Import middleware if needed
-// const { authMiddleware } = require("../middlewares/authMiddleware");
-// const { adminMiddleware } = require("../middlewares/adminMiddleware");
+const { authMiddleware } = require("../middlewares/authMiddleware");
+const { adminMiddleware } = require("../middlewares/adminMiddleware");
 
 // ======================================================
 // REGISTRATION REQUEST ROUTES
 // ======================================================
 
-// Approve student registration request
-requestRouter.put("/:id/approve", approveStudentRequest);
+// Approve student registration request (admin only)
+requestRouter.put("/:id/approve", authMiddleware, adminMiddleware, approveStudentRequest);
 
-// Reject student registration request
-requestRouter.put("/:id/reject", rejectStudentRequest);
+// Reject student registration request (admin only)
+requestRouter.put("/:id/reject", authMiddleware, adminMiddleware, rejectStudentRequest);
 
 module.exports = requestRouter;

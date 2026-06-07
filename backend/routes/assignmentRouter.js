@@ -12,15 +12,15 @@ const {
   gradeAssignmentSubmission,
 } = require("../controllers/assignments/assignmentController");
 
-// Import middleware if needed
-// const { authMiddleware } = require("../middlewares/authMiddleware");
+const { authMiddleware } = require("../middlewares/authMiddleware");
+const { adminMiddleware } = require("../middlewares/adminMiddleware");
 
 // ======================================================
 // ASSIGNMENT ROUTES
 // ======================================================
 
-// Create assignment
-assignmentRouter.post("/", createAssignment);
+// Create assignment (admin/instructor)
+assignmentRouter.post("/", authMiddleware, createAssignment);
 
 // Get all assignments for a course
 assignmentRouter.get("/course/:courseId", getAssignments);
@@ -28,23 +28,23 @@ assignmentRouter.get("/course/:courseId", getAssignments);
 // Get single assignment
 assignmentRouter.get("/:assignmentId", getAssignment);
 
-// Update assignment
-assignmentRouter.put("/:assignmentId", updateAssignment);
+// Update assignment (admin/instructor)
+assignmentRouter.put("/:assignmentId", authMiddleware, updateAssignment);
 
-// Delete assignment
-assignmentRouter.delete("/:assignmentId", deleteAssignment);
+// Delete assignment (admin/instructor)
+assignmentRouter.delete("/:assignmentId", authMiddleware, deleteAssignment);
 
 // ======================================================
 // SUBMISSION ROUTES
 // ======================================================
 
-// Submit assignment
-assignmentRouter.post("/:assignmentId/submit", submitAssignment);
+// Submit assignment (student)
+assignmentRouter.post("/:assignmentId/submit", authMiddleware, submitAssignment);
 
-// Get submissions for assignment
-assignmentRouter.get("/:assignmentId/submissions", getAssignmentSubmissions);
+// Get submissions for assignment (admin/instructor)
+assignmentRouter.get("/:assignmentId/submissions", authMiddleware, getAssignmentSubmissions);
 
-// Grade submission
-assignmentRouter.put("/submission/:submissionId/grade", gradeAssignmentSubmission);
+// Grade submission (admin/instructor)
+assignmentRouter.put("/submission/:submissionId/grade", authMiddleware, gradeAssignmentSubmission);
 
 module.exports = assignmentRouter;

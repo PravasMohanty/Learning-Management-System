@@ -1,30 +1,21 @@
-router.post(
-  "/:courseId/lesson/:lessonId/complete",
-  authMiddleware,
-  markLessonComplete
-);
+const express = require("express");
+const progressRouter = express.Router();
 
-router.delete(
-  "/:courseId/lesson/:lessonId/complete",
-  authMiddleware,
-  markLessonIncomplete
-);
+const { authMiddleware } = require("../middlewares/authMiddleware");
 
-router.get(
-  "/:courseId",
-  authMiddleware,
-  getCourseProgress
-);
+const {
+  initializeProgress,
+  updateProgress,
+  getCourseProgress,
+  getMyProgress,
+} = require("../controllers/courses/progressController");
 
-router.get(
-  "/",
-  authMiddleware,
-  getMyProgress
-);
+progressRouter.post("/:courseId", authMiddleware, initializeProgress);
 
-router.post(
-  "/:courseId/recalculate",
-  authMiddleware,
-  recalculateProgress
-);
+progressRouter.put("/:courseId", authMiddleware, updateProgress);
 
+progressRouter.get("/", authMiddleware, getMyProgress);
+
+progressRouter.get("/:courseId", authMiddleware, getCourseProgress);
+
+module.exports = progressRouter;

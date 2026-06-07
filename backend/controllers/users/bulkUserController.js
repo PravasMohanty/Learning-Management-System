@@ -1,5 +1,7 @@
 const { supabase } = require("../../config/supabase");
 
+const fs = require("fs");
+
 const path = require("path");
 
 const csvUserReader = require("../../utils/csvUserReader");
@@ -33,9 +35,10 @@ const createUsersFromCSV = async (req, res) => {
         } = user;
 
         const { data: authData, error: authError } =
-          await supabase.auth.signUp({
+          await supabase.auth.admin.createUser({
             email,
             password,
+            email_confirm: true,
           });
 
         if (authError) {
@@ -79,6 +82,13 @@ const createUsersFromCSV = async (req, res) => {
           reason: error.message,
         });
       }
+    }
+
+    // Clean up uploaded CSV file
+    try {
+      fs.unlinkSync(file.path);
+    } catch (cleanupErr) {
+      console.error("[CSV CLEANUP ERROR]", cleanupErr);
     }
 
     return res.status(200).json({

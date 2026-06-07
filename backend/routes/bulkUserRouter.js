@@ -6,21 +6,19 @@ const {
   createUsersFromCSV,
 } = require("../controllers/users/bulkUserController");
 
-// Import middleware if needed - may need multer for file upload
-// const { authMiddleware } = require("../middlewares/authMiddleware");
-// const { adminMiddleware } = require("../middlewares/adminMiddleware");
-// const multer = require("multer");
-// const upload = multer({ dest: "uploads/" });
+const { authMiddleware } = require("../middlewares/authMiddleware");
+const { adminMiddleware } = require("../middlewares/adminMiddleware");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
 
 // ======================================================
 // BULK USER ROUTES
 // ======================================================
 
-// Download CSV template for bulk user creation
-bulkUserRouter.get("/template/download", downloadCSVTemplate);
+// Download CSV template for bulk user creation (admin only)
+bulkUserRouter.get("/template/download", authMiddleware, adminMiddleware, downloadCSVTemplate);
 
-// Create users from CSV file
-// Note: May need to add multer middleware for file uploads
-bulkUserRouter.post("/upload-csv", createUsersFromCSV);
+// Create users from CSV file (admin only)
+bulkUserRouter.post("/upload-csv", authMiddleware, adminMiddleware, upload.single("file"), createUsersFromCSV);
 
 module.exports = bulkUserRouter;

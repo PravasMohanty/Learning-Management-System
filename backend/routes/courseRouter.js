@@ -10,30 +10,29 @@ const {
   publishCourse,
 } = require("../controllers/courses/courseController");
 
-// Import middleware if needed
-// const { authMiddleware } = require("../middlewares/authMiddleware");
-// const { adminMiddleware } = require("../middlewares/adminMiddleware");
+const { authMiddleware } = require("../middlewares/authMiddleware");
+const { adminMiddleware } = require("../middlewares/adminMiddleware");
 
 // ======================================================
 // COURSE ROUTES
 // ======================================================
 
-// Create course
-courseRouter.post("/", createCourse);
+// Create course (admin only)
+courseRouter.post("/", authMiddleware, adminMiddleware, createCourse);
 
-// Get all courses
+// Get all courses (public)
 courseRouter.get("/", getAllCourses);
 
-// Get single course
+// Get single course (public)
 courseRouter.get("/:courseId", getCourseById);
 
-// Update course
-courseRouter.put("/:courseId", updateCourse);
+// Update course (admin only)
+courseRouter.put("/:courseId", authMiddleware, adminMiddleware, updateCourse);
 
-// Delete course
-courseRouter.delete("/:courseId", deleteCourse);
+// Delete course (admin only)
+courseRouter.delete("/:courseId", authMiddleware, adminMiddleware, deleteCourse);
 
-// Publish course
-courseRouter.put("/:courseId/publish", publishCourse);
+// Publish course (admin only)
+courseRouter.put("/:courseId/publish", authMiddleware, adminMiddleware, publishCourse);
 
 module.exports = courseRouter;

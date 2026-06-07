@@ -24,13 +24,19 @@ const createAssignment = async (req, res) => {
                     created_by: req.user.id
                 }
             ])
-            .select();
+            .select()
+            .single();
 
         if (error) throw error;
 
-        return res.status(201).json(data[0]);
+        return res.status(201).json({
+            success: true,
+            message: "Assignment created successfully",
+            data,
+        });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: err.message
         });
     }
@@ -48,9 +54,13 @@ const getAssignments = async (req, res) => {
 
         if (error) throw error;
 
-        return res.status(200).json(data);
+        return res.status(200).json({
+            success: true,
+            data,
+        });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: err.message
         });
     }
@@ -68,9 +78,13 @@ const getAssignment = async (req, res) => {
 
         if (error) throw error;
 
-        return res.status(200).json(data);
+        return res.status(200).json({
+            success: true,
+            data,
+        });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: err.message
         });
     }
@@ -87,13 +101,19 @@ const updateAssignment = async (req, res) => {
                 updated_at: new Date()
             })
             .eq("id", assignmentId)
-            .select();
+            .select()
+            .single();
 
         if (error) throw error;
 
-        return res.status(200).json(data[0]);
+        return res.status(200).json({
+            success: true,
+            message: "Assignment updated successfully",
+            data,
+        });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: err.message
         });
     }
@@ -111,10 +131,12 @@ const deleteAssignment = async (req, res) => {
         if (error) throw error;
 
         return res.status(200).json({
+            success: true,
             message: "Assignment deleted successfully"
         });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: err.message
         });
     }
@@ -139,13 +161,19 @@ const submitAssignment = async (req, res) => {
                     remarks
                 }
             ])
-            .select();
+            .select()
+            .single();
 
         if (error) throw error;
 
-        return res.status(201).json(data[0]);
+        return res.status(201).json({
+            success: true,
+            message: "Assignment submitted successfully",
+            data,
+        });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: err.message
         });
     }
@@ -162,9 +190,13 @@ const getSubmissions = async (req, res) => {
 
         if (error) throw error;
 
-        return res.status(200).json(data);
+        return res.status(200).json({
+            success: true,
+            data,
+        });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: err.message
         });
     }
@@ -186,13 +218,19 @@ const gradeSubmission = async (req, res) => {
                 feedback
             })
             .eq("id", submissionId)
-            .select();
+            .select()
+            .single();
 
         if (error) throw error;
 
-        return res.status(200).json(data[0]);
+        return res.status(200).json({
+            success: true,
+            message: "Submission graded successfully",
+            data,
+        });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: err.message
         });
     }

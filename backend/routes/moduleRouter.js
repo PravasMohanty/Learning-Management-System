@@ -8,23 +8,23 @@ const {
   deleteModule,
 } = require("../controllers/modules/moduleController");
 
-// Import middleware if needed
-// const { authMiddleware } = require("../middlewares/authMiddleware");
+const { authMiddleware } = require("../middlewares/authMiddleware");
+const { adminMiddleware } = require("../middlewares/adminMiddleware");
 
 // ======================================================
 // MODULE ROUTES
 // ======================================================
 
-// Create module for a course
-moduleRouter.post("/:courseId", createModule);
+// Create module for a course (admin only)
+moduleRouter.post("/:courseId", authMiddleware, adminMiddleware, createModule);
 
-// Get all modules for a course
+// Get all modules for a course (public)
 moduleRouter.get("/course/:courseId", getCourseModules);
 
-// Update module
-moduleRouter.put("/:moduleId", updateModule);
+// Update module (admin only)
+moduleRouter.put("/:moduleId", authMiddleware, adminMiddleware, updateModule);
 
-// Delete module
-moduleRouter.delete("/:moduleId", deleteModule);
+// Delete module (admin only)
+moduleRouter.delete("/:moduleId", authMiddleware, adminMiddleware, deleteModule);
 
 module.exports = moduleRouter;

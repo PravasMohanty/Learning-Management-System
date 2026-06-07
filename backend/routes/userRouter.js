@@ -13,34 +13,33 @@ const {
   getUserProfileByAdmin,
 } = require("../controllers/users/profileController");
 
-// Import middleware if needed
-// const { authMiddleware } = require("../middlewares/authMiddleware");
-// const { adminMiddleware } = require("../middlewares/adminMiddleware");
+const { authMiddleware } = require("../middlewares/authMiddleware");
+const { adminMiddleware } = require("../middlewares/adminMiddleware");
 
 // ======================================================
 // PROFILE ROUTES
 // ======================================================
 
-// Get my profile
-userRouter.get("/profile/me", getMyProfile);
+// Get my profile (auth required)
+userRouter.get("/profile/me", authMiddleware, getMyProfile);
 
-// Get user profile by admin
-userRouter.get("/profile/:userId", getUserProfileByAdmin);
+// Get user profile by admin (admin only)
+userRouter.get("/profile/:userId", authMiddleware, adminMiddleware, getUserProfileByAdmin);
 
 // ======================================================
 // USER MANAGEMENT ROUTES
 // ======================================================
 
-// List all users
-userRouter.get("/", listUsers);
+// List all users (admin only)
+userRouter.get("/", authMiddleware, adminMiddleware, listUsers);
 
-// Lock user account
-userRouter.put("/:userId/lock", lockUserAccount);
+// Lock user account (admin only)
+userRouter.put("/:userId/lock", authMiddleware, adminMiddleware, lockUserAccount);
 
-// Unlock user account
-userRouter.put("/:userId/unlock", unlockUserAccount);
+// Unlock user account (admin only)
+userRouter.put("/:userId/unlock", authMiddleware, adminMiddleware, unlockUserAccount);
 
-// Delete user
-userRouter.delete("/:userId", deleteUser);
+// Delete user (admin only)
+userRouter.delete("/:userId", authMiddleware, adminMiddleware, deleteUser);
 
 module.exports = userRouter;

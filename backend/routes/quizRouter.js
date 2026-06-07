@@ -5,17 +5,16 @@ const {
   createQuizFromCSV,
 } = require("../controllers/quiz/quizController");
 
-// Import middleware if needed - may need multer for file upload
-// const { authMiddleware } = require("../middlewares/authMiddleware");
-// const multer = require("multer");
-// const upload = multer({ dest: "uploads/" });
+const { authMiddleware } = require("../middlewares/authMiddleware");
+const { adminMiddleware } = require("../middlewares/adminMiddleware");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
 
 // ======================================================
 // QUIZ ROUTES
 // ======================================================
 
-// Create quiz from CSV file
-// Note: May need to add multer middleware for file uploads
-quizRouter.post("/:moduleId/create-from-csv", createQuizFromCSV);
+// Create quiz from CSV file (admin only)
+quizRouter.post("/:moduleId/create-from-csv", authMiddleware, adminMiddleware, upload.single("file"), createQuizFromCSV);
 
 module.exports = quizRouter;

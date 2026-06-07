@@ -145,7 +145,7 @@ const getAllCourses = async (req, res) => {
 
 const getCourseById = async (req, res) => {
   try {
-    const courseId = req.params.id;
+    const courseId = req.params.courseId;
 
     const { data: course, error } = await supabase
       .from("courses")
@@ -180,7 +180,7 @@ const getCourseById = async (req, res) => {
 
 const updateCourse = async (req, res) => {
   try {
-    const courseId = req.params.id;
+    const courseId = req.params.courseId;
 
     const {
       title,
@@ -266,11 +266,10 @@ const updateCourse = async (req, res) => {
 
 const deleteCourse = async (req, res) => {
   try {
-    const courseId = req.params.id;
+    const courseId = req.params.courseId;
 
     // ==================================================
     // CHECK COURSE EXISTS
-    // ==================================================
 
     const { data: existingCourse } = await supabase
       .from("courses")
@@ -321,11 +320,10 @@ const deleteCourse = async (req, res) => {
 
 const publishCourse = async (req, res) => {
   try {
-    const courseId = req.params.id;
+    const courseId = req.params.courseId;
 
     // ==================================================
     // CHECK COURSE EXISTS
-    // ==================================================
 
     const { data: existingCourse } = await supabase
       .from("courses")

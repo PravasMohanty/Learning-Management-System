@@ -22,7 +22,9 @@ const quizRouter = require("../routes/quizRouter");
 const requestRouter = require("../routes/requestRouter");
 const userRouter = require("../routes/userRouter");
 const bulkUserRouter = require("../routes/bulkUserRouter");
+const progressRouter = require("../routes/progressRouter");
 const healthRouter = require("../routes/healthRouter");
+const certificateRouter = require("../routes/certificateRouter");
 
 // ======================================================
 // API ROUTES
@@ -54,6 +56,12 @@ app.use("/api/users", userRouter);
 
 // Bulk user routes
 app.use("/api/bulk-users", bulkUserRouter);
+
+// Progress routes
+app.use("/api/progress", progressRouter);
+
+// Certificate routes
+app.use("/api/certificates", certificateRouter);
 
 // ======================================================
 // DEFAULT ROUTES

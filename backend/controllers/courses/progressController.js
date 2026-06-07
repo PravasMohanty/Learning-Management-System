@@ -1,5 +1,5 @@
-const { supabase } = require("../config/supabase");
-const certificateService = require("../services/certificateService");
+const { supabase } = require("../../config/supabase");
+const certificateService = require("../../services/certificateService");
 
 /**
  * Create progress record
