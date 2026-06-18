@@ -1,4 +1,5 @@
-const { supabase } = require("../../config/supabase");
+const { supabase, supabaseAdmin } = require("../../config/supabase");
+const generateUserCode = require("../../utils/generateUserCode");
 
 // ======================================================
 // REGISTER ADMIN
@@ -22,7 +23,7 @@ const registerAdmin = async (req, res) => {
       });
     }
 
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("email", email)
@@ -51,11 +52,12 @@ const registerAdmin = async (req, res) => {
 
     const user = authData.user;
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .insert([
         {
           id: user.id,
+          user_code: generateUserCode(),
           name,
           email,
           role: "admin",
@@ -63,6 +65,7 @@ const registerAdmin = async (req, res) => {
       ]);
 
     if (profileError) {
+      console.error("[PROFILE INSERT ERROR]", profileError);
       return res.status(500).json({
         success: false,
         message: "Profile creation failed",
@@ -99,7 +102,7 @@ const submitStudentRegistrationRequest = async (req, res) => {
       });
     }
 
-    const { data: existingRequest } = await supabase
+    const { data: existingRequest } = await supabaseAdmin
       .from("registration_requests")
       .select("id")
       .eq("email", email)
@@ -112,7 +115,7 @@ const submitStudentRegistrationRequest = async (req, res) => {
       });
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("registration_requests")
       .insert([
         {

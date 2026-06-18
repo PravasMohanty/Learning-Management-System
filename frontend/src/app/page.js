@@ -3,54 +3,119 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { BookOpen, GraduationCap, Award } from "lucide-react";
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
-  if (user) {
-    router.push(
-      user.role === "admin" ? "/admin/dashboard" : "/student/dashboard"
+  useEffect(() => {
+    if (!loading && user) {
+      router.push(user.role === "admin" ? "/admin/dashboard" : "/student/dashboard");
+    }
+  }, [user, loading, router]);
+
+  if (loading || user) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="skeleton skeleton-circle" style={{ width: 48, height: 48 }} />
+      </div>
     );
-    return null;
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
-      <div className="max-w-4xl mx-auto px-4 text-center text-white">
-        <h1 className="text-5xl font-bold mb-6">Learning Management System</h1>
-        <p className="text-xl mb-8 opacity-90">
-          Comprehensive platform for online learning and course management
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "var(--color-primary)",
+        padding: 24,
+        textAlign: "center",
+      }}
+    >
+      <div style={{ maxWidth: 540, width: "100%" }}>
+        <h1
+          style={{
+            fontSize: 36,
+            fontWeight: 700,
+            color: "#ffffff",
+            marginBottom: 8,
+            letterSpacing: 1,
+          }}
+        >
+          RESO <span style={{ color: "var(--color-accent)" }}>LMS</span>
+        </h1>
+        <p
+          style={{
+            fontSize: 16,
+            color: "rgba(255,255,255,0.7)",
+            marginBottom: 36,
+            lineHeight: 1.6,
+          }}
+        >
+          Institutional Learning Management Platform for course delivery, assessments, and certifications.
         </p>
 
-        <div className="flex gap-4 justify-center flex-wrap">
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <Link
             href="/auth/login"
-            className="px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition"
+            className="btn btn-accent btn-lg"
+            style={{ minWidth: 160 }}
           >
-            Login
+            Sign In
           </Link>
           <Link
             href="/auth/register"
-            className="px-8 py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-400 transition border-2 border-white"
+            className="btn btn-lg"
+            style={{
+              minWidth: 160,
+              backgroundColor: "transparent",
+              color: "#ffffff",
+              border: "1px solid rgba(255,255,255,0.3)",
+            }}
           >
             Register
           </Link>
         </div>
 
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white bg-opacity-10 backdrop-blur p-6 rounded-lg">
-            <h3 className="text-2xl font-bold mb-2">Courses</h3>
-            <p>Access comprehensive course materials and resources</p>
-          </div>
-          <div className="bg-white bg-opacity-10 backdrop-blur p-6 rounded-lg">
-            <h3 className="text-2xl font-bold mb-2">Assignments</h3>
-            <p>Submit and track your assignment progress</p>
-          </div>
-          <div className="bg-white bg-opacity-10 backdrop-blur p-6 rounded-lg">
-            <h3 className="text-2xl font-bold mb-2">Quizzes</h3>
-            <p>Test your knowledge with interactive quizzes</p>
-          </div>
+        <div
+          style={{
+            marginTop: 56,
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 20,
+          }}
+        >
+          {[
+            { icon: BookOpen, label: "Courses", desc: "Comprehensive course materials" },
+            { icon: GraduationCap, label: "Assessments", desc: "Assignments and quizzes" },
+            { icon: Award, label: "Certificates", desc: "Verified certifications" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                padding: "24px 16px",
+                borderRadius: 6,
+                backgroundColor: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <item.icon
+                size={24}
+                style={{ color: "var(--color-accent)", marginBottom: 10 }}
+              />
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#ffffff", marginBottom: 4 }}>
+                {item.label}
+              </div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+                {item.desc}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </main>

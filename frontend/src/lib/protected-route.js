@@ -25,8 +25,18 @@ export const ProtectedRoute = ({ children, requiredRole = null }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "16px",
+          }}
+        >
+          <div className="skeleton" style={{ width: 48, height: 48, borderRadius: "50%" }} />
+          <div className="skeleton skeleton-line medium" />
+        </div>
       </div>
     );
   }

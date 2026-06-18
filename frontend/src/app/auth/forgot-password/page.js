@@ -1,191 +1,162 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Input } from "@/components/ui/Input";
+import { authAPI } from "@/lib/api";
 import Link from "next/link";
+import toast from "react-hot-toast";
+
+const emailSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+});
+
+const resetSchema = z.object({
+  otp: z.string().min(1, "OTP is required"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+});
 
 export default function ForgotPasswordPage() {
-  const [step, setStep] = useState("email"); // email, otp, reset
+  const [step, setStep] = useState(1); // 1: email, 2: OTP + new password
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const { sendPasswordResetOTP, resetPassword } = useAuth();
-  const router = useRouter();
+  const emailForm = useForm({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { email: "" },
+  });
 
-  const handleSendOTP = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  const resetForm = useForm({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { otp: "", newPassword: "" },
+  });
 
+  const onSendOTP = async (data) => {
     try {
-      await sendPasswordResetOTP(email);
-      setStep("otp");
+      setSubmitting(true);
+      const response = await authAPI.forgotPassword(data.email);
+      if (!response.success) throw new Error(response.message);
+      setEmail(data.email);
+      setStep(2);
+      toast.success("OTP sent to your email");
     } catch (err) {
-      setError(err.message || "Failed to send OTP");
+      toast.error(err.message || "Failed to send OTP");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleVerifyOTP = (e) => {
-    e.preventDefault();
-    setError("");
-
-    if (!otp || otp.length !== 6) {
-      setError("Please enter a valid 6-digit OTP");
-      return;
-    }
-
-    setStep("reset");
-  };
-
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-
-    setLoading(true);
-
+  const onResetPassword = async (data) => {
     try {
-      await resetPassword(email, otp, newPassword);
-      router.push("/auth/login?reset=success");
+      setSubmitting(true);
+      const response = await authAPI.forgotPassword(email, data.otp, data.newPassword);
+      if (!response.success) throw new Error(response.message);
+      toast.success("Password reset successful");
+      setStep(3);
     } catch (err) {
-      setError(err.message || "Failed to reset password");
+      toast.error(err.message || "Failed to reset password");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-        <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">
-          Reset Password
-        </h2>
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <div className="auth-logo-text">
+            RESO <span className="auth-logo-accent">LMS</span>
+          </div>
+        </div>
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
+        {step === 1 && (
+          <>
+            <h1 className="auth-title">Forgot Password</h1>
+            <p className="auth-subtitle">
+              Enter your email address and we&apos;ll send you an OTP to reset your password
+            </p>
+            <form onSubmit={emailForm.handleSubmit(onSendOTP)} noValidate>
+              <Input
+                label="Email Address"
+                type="email"
+                placeholder="you@institution.edu"
+                error={emailForm.formState.errors.email?.message}
+                {...emailForm.register("email")}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary btn-lg w-full"
+                disabled={submitting}
+              >
+                {submitting ? "Sending OTP..." : "Send OTP"}
+              </button>
+            </form>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <h1 className="auth-title">Reset Password</h1>
+            <p className="auth-subtitle">
+              Enter the OTP sent to <strong>{email}</strong> and your new password
+            </p>
+            <form onSubmit={resetForm.handleSubmit(onResetPassword)} noValidate>
+              <Input
+                label="OTP Code"
+                placeholder="Enter OTP from your email"
+                error={resetForm.formState.errors.otp?.message}
+                {...resetForm.register("otp")}
+              />
+              <Input
+                label="New Password"
+                type="password"
+                placeholder="Enter new password"
+                error={resetForm.formState.errors.newPassword?.message}
+                {...resetForm.register("newPassword")}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary btn-lg w-full"
+                disabled={submitting}
+              >
+                {submitting ? "Resetting..." : "Reset Password"}
+              </button>
+            </form>
+            <div style={{ textAlign: "center", marginTop: 12 }}>
+              <button
+                className="btn btn-ghost text-sm"
+                onClick={() => {
+                  setStep(1);
+                  resetForm.reset();
+                }}
+                type="button"
+              >
+                ← Back to email
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 3 && (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
+            <h2 style={{ marginBottom: 8 }}>Password Reset</h2>
+            <p className="text-muted" style={{ marginBottom: 24 }}>
+              Your password has been reset successfully. You can now sign in with your new password.
+            </p>
+            <Link href="/auth/login" className="btn btn-primary">
+              Go to Sign In
+            </Link>
           </div>
         )}
 
-        {step === "email" && (
-          <form onSubmit={handleSendOTP}>
-            <p className="text-gray-600 mb-6">
-              Enter your email address and we'll send you an OTP to reset your
-              password.
-            </p>
-
-            <div className="mb-6">
-              <label className="block text-gray-700 font-semibold mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400"
-            >
-              {loading ? "Sending OTP..." : "Send OTP"}
-            </button>
-          </form>
+        {step !== 3 && (
+          <div className="auth-footer">
+            Remember your password? <Link href="/auth/login">Sign In</Link>
+          </div>
         )}
-
-        {step === "otp" && (
-          <form onSubmit={handleVerifyOTP}>
-            <p className="text-gray-600 mb-6">
-              Enter the 6-digit OTP sent to your email.
-            </p>
-
-            <div className="mb-6">
-              <label className="block text-gray-700 font-semibold mb-2">
-                OTP
-              </label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                maxLength="6"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-center text-2xl"
-                placeholder="000000"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
-            >
-              Verify OTP
-            </button>
-          </form>
-        )}
-
-        {step === "reset" && (
-          <form onSubmit={handleResetPassword}>
-            <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-2">
-                New Password
-              </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                required
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-gray-700 font-semibold mb-2">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400"
-            >
-              {loading ? "Resetting..." : "Reset Password"}
-            </button>
-          </form>
-        )}
-
-        <div className="mt-4 text-center">
-          <Link href="/auth/login" className="text-blue-600 hover:text-blue-800 text-sm">
-            Back to Login
-          </Link>
-        </div>
       </div>
     </div>
   );

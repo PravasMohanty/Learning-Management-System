@@ -1,91 +1,132 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { ProtectedRoute } from "@/lib/protected-route";
-import { useAuth } from "@/lib/auth-context";
-import Link from "next/link";
-
-const CourseList = dynamic(
-  () => import("@/components/courses/CourseList").then((mod) => mod.default),
-  {
-    loading: () => <div className="animate-pulse">Loading courses...</div>,
-  }
-);
+import { useQuery } from "@tanstack/react-query";
+import { userAPI, courseAPI, certificateAPI } from "@/lib/api";
+import PageContainer from "@/components/layout/PageContainer";
+import StatCard from "@/components/ui/StatCard";
+import { SkeletonStatCards, SkeletonTable } from "@/components/ui/Skeleton";
+import DataTable from "@/components/ui/DataTable";
+import Badge from "@/components/ui/Badge";
+import { Users, BookOpen, Award, Clock } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { user, logout } = useAuth();
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: userAPI.getAll,
+  });
 
-  const handleLogout = async () => {
-    await logout();
-  };
+  const { data: coursesData, isLoading: coursesLoading } = useQuery({
+    queryKey: ["admin-courses"],
+    queryFn: courseAPI.getAll,
+  });
+
+  const { data: certsData, isLoading: certsLoading } = useQuery({
+    queryKey: ["admin-certificates"],
+    queryFn: certificateAPI.getAllCertificates,
+  });
+
+  const users = usersData?.data || [];
+  const courses = coursesData?.data || [];
+  const certificates = certsData?.certificates || [];
+
+  const totalUsers = users.length;
+  const totalCourses = courses.length;
+  const publishedCourses = courses.filter((c) => c.published).length;
+  const totalCertificates = certificates.length;
+
+  const isLoading = usersLoading || coursesLoading || certsLoading;
+
+  const recentUsers = users.slice(0, 5);
+
+  const recentUserColumns = [
+    { header: "Name", accessor: "name" },
+    { header: "Email", accessor: "email" },
+    {
+      header: "Role",
+      accessor: "role",
+      cell: (row) => <Badge variant={row.role}>{row.role}</Badge>,
+    },
+    {
+      header: "Status",
+      accessor: "is_locked",
+      cell: (row) => (
+        <Badge variant={row.is_locked ? "locked" : "active"}>
+          {row.is_locked ? "Locked" : "Active"}
+        </Badge>
+      ),
+    },
+    {
+      header: "Joined",
+      accessor: "created_at",
+      cell: (row) =>
+        row.created_at
+          ? new Date(row.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "—",
+    },
+  ];
 
   return (
-    <ProtectedRoute requiredRole="admin">
-      <div className="min-h-screen bg-gray-100">
-        {/* Header */}
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-700">Welcome, {user?.name}</span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
+    <PageContainer
+      title="Dashboard"
+      subtitle="Overview of your institution's learning platform"
+    >
+      {/* Stat Cards */}
+      {isLoading ? (
+        <SkeletonStatCards count={4} />
+      ) : (
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard
+            label="Total Users"
+            value={totalUsers}
+            icon={Users}
+            variant="primary"
+            footer={`${users.filter((u) => u.role === "student").length} students`}
+          />
+          <StatCard
+            label="Total Courses"
+            value={totalCourses}
+            icon={BookOpen}
+            variant="accent"
+            footer={`${publishedCourses} published`}
+          />
+          <StatCard
+            label="Certificates Issued"
+            value={totalCertificates}
+            icon={Award}
+            variant="success"
+          />
+          <StatCard
+            label="Draft Courses"
+            value={totalCourses - publishedCourses}
+            icon={Clock}
+            variant="info"
+            footer="Awaiting publication"
+          />
+        </div>
+      )}
 
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          {/* Navigation Tabs */}
-          <div className="bg-white rounded-lg shadow mb-8">
-            <nav className="flex border-b flex-wrap">
-              <Link
-                href="/admin/dashboard"
-                className="px-6 py-4 border-b-2 border-blue-600 text-blue-600 font-semibold"
-              >
-                Courses
-              </Link>
-              <Link
-                href="/admin/users"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Users
-              </Link>
-              <Link
-                href="/admin/requests"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Registration Requests
-              </Link>
-              <Link
-                href="/admin/bulk-upload"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Bulk Upload
-              </Link>
-            </nav>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="mb-8 flex gap-4 flex-wrap">
-            <Link
-              href="/admin/courses/new"
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-            >
-              + Create Course
-            </Link>
-          </div>
-
-          {/* Courses List */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">All Courses</h2>
-            <CourseList adminView={true} />
-          </div>
-        </main>
+      {/* Recent Users Table */}
+      <div style={{ marginTop: 24 }}>
+        <div style={{ marginBottom: 12 }}>
+          <h3>Recent Users</h3>
+        </div>
+        {isLoading ? (
+          <SkeletonTable rows={5} cols={5} />
+        ) : (
+          <DataTable
+            columns={recentUserColumns}
+            data={recentUsers}
+            searchable={false}
+            pageSize={5}
+            emptyTitle="No users yet"
+            emptyDescription="Users will appear here once they register."
+          />
+        )}
       </div>
-    </ProtectedRoute>
+    </PageContainer>
   );
 }

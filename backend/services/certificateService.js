@@ -1,5 +1,5 @@
 const PDFDocument = require("pdfkit");
-const { supabase } = require("../config/supabase");
+const { supabaseAdmin: supabase } = require("../config/supabase");
 
 const generateCertificatePdf = async ({ certificateId, studentName, courseName, issueDate }) => {
   try {

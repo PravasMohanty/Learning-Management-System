@@ -1,6 +1,6 @@
 const fs = require("fs");
 
-const { supabase } = require("../../config/supabase");
+const { supabaseAdmin: supabase } = require("../../config/supabase");
 
 const readQuizCSV = require("../../utils/csvQuizReader");
 

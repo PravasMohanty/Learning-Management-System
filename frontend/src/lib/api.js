@@ -2,7 +2,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/a
 
 export const apiCall = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   const headers = {
     "Content-Type": "application/json",
     ...options.headers,
@@ -46,6 +46,7 @@ export const apiCall = async (endpoint, options = {}) => {
           // Refresh failed, redirect to login
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
+          localStorage.removeItem("user");
           window.location.href = "/auth/login";
         }
       }
@@ -58,7 +59,10 @@ export const apiCall = async (endpoint, options = {}) => {
   }
 };
 
-// Auth APIs
+// ============================================================
+// AUTH APIs
+// ============================================================
+
 export const authAPI = {
   login: (email, password) =>
     apiCall("/auth/login", {
@@ -83,10 +87,10 @@ export const authAPI = {
       body: JSON.stringify({ name, email, password, adminCode }),
     }),
 
-  registerStudent: (name, email, phone, course) =>
+  registerStudent: (name, email) =>
     apiCall("/auth/register-student-request", {
       method: "POST",
-      body: JSON.stringify({ name, email, phone, course }),
+      body: JSON.stringify({ name, email }),
     }),
 
   forgotPassword: (email, otp = null, newPassword = null) =>
@@ -102,17 +106,16 @@ export const authAPI = {
     }),
 };
 
-// Course APIs
+// ============================================================
+// COURSE APIs
+// ============================================================
+
 export const courseAPI = {
   getAll: () =>
-    apiCall("/courses", {
-      method: "GET",
-    }),
+    apiCall("/courses", { method: "GET" }),
 
   getById: (courseId) =>
-    apiCall(`/courses/${courseId}`, {
-      method: "GET",
-    }),
+    apiCall(`/courses/${courseId}`, { method: "GET" }),
 
   create: (courseData) =>
     apiCall("/courses", {
@@ -127,22 +130,19 @@ export const courseAPI = {
     }),
 
   delete: (courseId) =>
-    apiCall(`/courses/${courseId}`, {
-      method: "DELETE",
-    }),
+    apiCall(`/courses/${courseId}`, { method: "DELETE" }),
 
   publish: (courseId) =>
-    apiCall(`/courses/${courseId}/publish`, {
-      method: "PUT",
-    }),
+    apiCall(`/courses/${courseId}/publish`, { method: "PUT" }),
 };
 
-// Module APIs
+// ============================================================
+// MODULE APIs
+// ============================================================
+
 export const moduleAPI = {
-  getByCoursId: (courseId) =>
-    apiCall(`/modules/course/${courseId}`, {
-      method: "GET",
-    }),
+  getByCourseId: (courseId) =>
+    apiCall(`/modules/course/${courseId}`, { method: "GET" }),
 
   create: (courseId, moduleData) =>
     apiCall(`/modules/${courseId}`, {
@@ -157,22 +157,19 @@ export const moduleAPI = {
     }),
 
   delete: (moduleId) =>
-    apiCall(`/modules/${moduleId}`, {
-      method: "DELETE",
-    }),
+    apiCall(`/modules/${moduleId}`, { method: "DELETE" }),
 };
 
-// Assignment APIs
+// ============================================================
+// ASSIGNMENT APIs
+// ============================================================
+
 export const assignmentAPI = {
   getAll: (courseId) =>
-    apiCall(`/assignments/course/${courseId}`, {
-      method: "GET",
-    }),
+    apiCall(`/assignments/course/${courseId}`, { method: "GET" }),
 
   getById: (assignmentId) =>
-    apiCall(`/assignments/${assignmentId}`, {
-      method: "GET",
-    }),
+    apiCall(`/assignments/${assignmentId}`, { method: "GET" }),
 
   create: (assignmentData) =>
     apiCall("/assignments", {
@@ -187,9 +184,7 @@ export const assignmentAPI = {
     }),
 
   delete: (assignmentId) =>
-    apiCall(`/assignments/${assignmentId}`, {
-      method: "DELETE",
-    }),
+    apiCall(`/assignments/${assignmentId}`, { method: "DELETE" }),
 
   submit: (assignmentId, submissionData) =>
     apiCall(`/assignments/${assignmentId}/submit`, {
@@ -198,9 +193,7 @@ export const assignmentAPI = {
     }),
 
   getSubmissions: (assignmentId) =>
-    apiCall(`/assignments/${assignmentId}/submissions`, {
-      method: "GET",
-    }),
+    apiCall(`/assignments/${assignmentId}/submissions`, { method: "GET" }),
 
   gradeSubmission: (submissionId, gradeData) =>
     apiCall(`/assignments/submission/${submissionId}/grade`, {
@@ -209,46 +202,37 @@ export const assignmentAPI = {
     }),
 };
 
-// User APIs
+// ============================================================
+// USER APIs
+// ============================================================
+
 export const userAPI = {
   getProfile: () =>
-    apiCall("/users/profile/me", {
-      method: "GET",
-    }),
+    apiCall("/users/profile/me", { method: "GET" }),
 
   getProfileById: (userId) =>
-    apiCall(`/users/profile/${userId}`, {
-      method: "GET",
-    }),
+    apiCall(`/users/profile/${userId}`, { method: "GET" }),
 
   getAll: () =>
-    apiCall("/users", {
-      method: "GET",
-    }),
+    apiCall("/users", { method: "GET" }),
 
   lockAccount: (userId) =>
-    apiCall(`/users/${userId}/lock`, {
-      method: "PUT",
-    }),
+    apiCall(`/users/${userId}/lock`, { method: "PUT" }),
 
   unlockAccount: (userId) =>
-    apiCall(`/users/${userId}/unlock`, {
-      method: "PUT",
-    }),
+    apiCall(`/users/${userId}/unlock`, { method: "PUT" }),
 
   delete: (userId) =>
-    apiCall(`/users/${userId}`, {
-      method: "DELETE",
-    }),
+    apiCall(`/users/${userId}`, { method: "DELETE" }),
 };
 
-// Bulk User APIs
+// ============================================================
+// BULK USER APIs
+// ============================================================
+
 export const bulkUserAPI = {
-  downloadTemplate: () => {
-    const link = document.createElement("a");
-    link.href = `${API_BASE_URL}/bulk-users/template/download`;
-    link.click();
-  },
+  getTemplateUrl: () =>
+    `${API_BASE_URL}/bulk-users/template/download`,
 
   uploadCSV: (file) => {
     const formData = new FormData();
@@ -264,12 +248,13 @@ export const bulkUserAPI = {
   },
 };
 
-// Request APIs
+// ============================================================
+// REQUEST APIs
+// ============================================================
+
 export const requestAPI = {
   approve: (requestId) =>
-    apiCall(`/requests/${requestId}/approve`, {
-      method: "PUT",
-    }),
+    apiCall(`/requests/${requestId}/approve`, { method: "PUT" }),
 
   reject: (requestId, rejectionReason = "") =>
     apiCall(`/requests/${requestId}/reject`, {
@@ -278,15 +263,18 @@ export const requestAPI = {
     }),
 };
 
-// Quiz APIs
+// ============================================================
+// QUIZ APIs
+// ============================================================
+
 export const quizAPI = {
   createFromCSV: (moduleId, quizData, csvFile) => {
     const formData = new FormData();
     formData.append("file", csvFile);
     formData.append("title", quizData.title);
-    formData.append("description", quizData.description);
-    formData.append("pass_percentage", quizData.pass_percentage);
-    formData.append("time_limit", quizData.time_limit);
+    if (quizData.description) formData.append("description", quizData.description);
+    if (quizData.pass_percentage) formData.append("pass_percentage", quizData.pass_percentage);
+    if (quizData.time_limit) formData.append("time_limit", quizData.time_limit);
 
     return fetch(`${API_BASE_URL}/quiz/${moduleId}/create-from-csv`, {
       method: "POST",
@@ -296,4 +284,46 @@ export const quizAPI = {
       body: formData,
     }).then((res) => res.json());
   },
+};
+
+// ============================================================
+// PROGRESS APIs
+// ============================================================
+
+export const progressAPI = {
+  getMyProgress: () =>
+    apiCall("/progress", { method: "GET" }),
+
+  getCourseProgress: (courseId) =>
+    apiCall(`/progress/${courseId}`, { method: "GET" }),
+
+  initialize: (courseId) =>
+    apiCall(`/progress/${courseId}`, { method: "POST" }),
+
+  update: (courseId, progress) =>
+    apiCall(`/progress/${courseId}`, {
+      method: "PUT",
+      body: JSON.stringify({ progress }),
+    }),
+};
+
+// ============================================================
+// CERTIFICATE APIs
+// ============================================================
+
+export const certificateAPI = {
+  getMyCertificates: () =>
+    apiCall("/certificates/my", { method: "GET" }),
+
+  getAllCertificates: () =>
+    apiCall("/certificates/all", { method: "GET" }),
+
+  getById: (id) =>
+    apiCall(`/certificates/${id}`, { method: "GET" }),
+
+  download: (id) =>
+    apiCall(`/certificates/${id}/download`, { method: "GET" }),
+
+  generate: (courseId) =>
+    apiCall(`/certificates/${courseId}/generate`, { method: "POST" }),
 };

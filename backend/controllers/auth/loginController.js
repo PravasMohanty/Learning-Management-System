@@ -1,4 +1,4 @@
-const { supabase } = require("../../config/supabase");
+const { supabase, supabaseAdmin } = require("../../config/supabase");
 
 // ======================================================
 // LOGIN USER
@@ -30,13 +30,14 @@ const loginUser = async (req, res) => {
 
     const user = authData.user;
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .single();
 
     if (profileError || !profile) {
+      console.error("[LOGIN PROFILE ERROR]", profileError);
       return res.status(404).json({
         success: false,
         message: "Profile not found",

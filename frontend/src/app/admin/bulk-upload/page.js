@@ -1,179 +1,227 @@
 "use client";
 
-import { ProtectedRoute } from "@/lib/protected-route";
-import { useAuth } from "@/lib/auth-context";
+import { useState, useRef } from "react";
 import { bulkUserAPI } from "@/lib/api";
-import Link from "next/link";
-import { useState } from "react";
+import PageContainer from "@/components/layout/PageContainer";
+import toast from "react-hot-toast";
+import { Upload, Download, FileText, CheckCircle, XCircle } from "lucide-react";
 
-export default function AdminBulkUploadPage() {
-  const { user, logout } = useAuth();
+export default function BulkUploadPage() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  const handleDownloadTemplate = () => {
-    bulkUserAPI.downloadTemplate();
-  };
+  const [result, setResult] = useState(null);
+  const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
-    setFile(e.target.files?.[0] || null);
-    setMessage("");
-    setError("");
+    const selected = e.target.files?.[0];
+    if (selected) {
+      if (!selected.name.endsWith(".csv")) {
+        toast.error("Please select a CSV file");
+        return;
+      }
+      setFile(selected);
+      setResult(null);
+    }
   };
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    setError("");
-    setMessage("");
-
+  const handleUpload = async () => {
     if (!file) {
-      setError("Please select a file");
+      toast.error("Please select a file first");
       return;
     }
-
-    if (!file.name.endsWith(".csv")) {
-      setError("Please select a CSV file");
-      return;
-    }
-
-    setUploading(true);
 
     try {
+      setUploading(true);
       const response = await bulkUserAPI.uploadCSV(file);
-      if (response.success) {
-        setMessage("Users uploaded successfully!");
-        setFile(null);
-      } else {
-        setError(response.message || "Upload failed");
-      }
+      if (!response.success) throw new Error(response.message);
+      setResult(response.data);
+      toast.success("CSV processed successfully");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
-      setError(err.message || "Upload failed");
+      toast.error(err.message || "Upload failed");
     } finally {
       setUploading(false);
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const token = localStorage.getItem("access_token");
+    const url = bulkUserAPI.getTemplateUrl();
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "student_upload_template.csv");
+    // For authenticated download, we open in new tab
+    window.open(`${url}?token=${token}`, "_blank");
+  };
+
   return (
-    <ProtectedRoute requiredRole="admin">
-      <div className="min-h-screen bg-gray-100">
-        {/* Header */}
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Bulk Upload</h1>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-            >
-              Logout
+    <PageContainer
+      title="Bulk User Upload"
+      subtitle="Create multiple student accounts from a CSV file"
+    >
+      {/* Instructions Card */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div className="card-body">
+          <h4 style={{ marginBottom: 12 }}>Instructions</h4>
+          <ol style={{ paddingLeft: 20, color: "var(--color-text-secondary)", lineHeight: 2 }}>
+            <li>Download the CSV template using the button below</li>
+            <li>Fill in student details: <strong>name</strong>, <strong>email</strong>, <strong>password</strong></li>
+            <li>Upload the completed CSV file</li>
+            <li>Review the results for any failed entries</li>
+          </ol>
+          <div style={{ marginTop: 16 }}>
+            <button className="btn btn-outline" onClick={handleDownloadTemplate}>
+              <Download size={16} /> Download CSV Template
             </button>
           </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          {/* Navigation Tabs */}
-          <div className="bg-white rounded-lg shadow mb-8">
-            <nav className="flex border-b flex-wrap">
-              <Link
-                href="/admin/dashboard"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Courses
-              </Link>
-              <Link
-                href="/admin/users"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Users
-              </Link>
-              <Link
-                href="/admin/requests"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Registration Requests
-              </Link>
-              <Link
-                href="/admin/bulk-upload"
-                className="px-6 py-4 border-b-2 border-blue-600 text-blue-600 font-semibold"
-              >
-                Bulk Upload
-              </Link>
-            </nav>
-          </div>
-
-          {/* Upload Card */}
-          <div className="bg-white rounded-lg shadow max-w-2xl">
-            <div className="px-6 py-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Bulk User Upload
-              </h2>
-
-              {message && (
-                <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-                  {message}
-                </div>
-              )}
-
-              {error && (
-                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                  {error}
-                </div>
-              )}
-
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  Instructions
-                </h3>
-                <ol className="list-decimal list-inside space-y-2 text-gray-600">
-                  <li>Download the CSV template</li>
-                  <li>Fill in user details (name, email, password)</li>
-                  <li>Select the CSV file</li>
-                  <li>Click Upload</li>
-                </ol>
-              </div>
-
-              <button
-                onClick={handleDownloadTemplate}
-                className="mb-6 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold"
-              >
-                Download Template
-              </button>
-
-              <form onSubmit={handleUpload}>
-                <div className="mb-6">
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Select CSV File
-                  </label>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileChange}
-                    className="block w-full text-gray-700 border border-gray-300 rounded px-4 py-2"
-                  />
-                  {file && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      Selected: {file.name}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={uploading || !file}
-                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:bg-gray-400"
-                >
-                  {uploading ? "Uploading..." : "Upload Users"}
-                </button>
-              </form>
-            </div>
-          </div>
-        </main>
+        </div>
       </div>
-    </ProtectedRoute>
+
+      {/* Upload Zone */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div className="card-body">
+          <h4 style={{ marginBottom: 16 }}>Upload CSV File</h4>
+
+          <div
+            className={`file-upload-zone ${file ? "active" : ""}`}
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const dropped = e.dataTransfer.files?.[0];
+              if (dropped) {
+                if (!dropped.name.endsWith(".csv")) {
+                  toast.error("Please drop a CSV file");
+                  return;
+                }
+                setFile(dropped);
+                setResult(null);
+              }
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+              aria-label="Upload CSV file"
+            />
+            <div className="file-upload-icon">
+              <Upload size={32} />
+            </div>
+            {file ? (
+              <div className="file-upload-text">
+                <FileText
+                  size={16}
+                  style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }}
+                />
+                <strong>{file.name}</strong> ({(file.size / 1024).toFixed(1)} KB)
+              </div>
+            ) : (
+              <div className="file-upload-text">
+                <strong>Click to browse</strong> or drag and drop a CSV file here
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+            <button
+              className="btn btn-primary"
+              onClick={handleUpload}
+              disabled={!file || uploading}
+            >
+              {uploading ? "Processing..." : "Upload & Process"}
+            </button>
+            {file && (
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setFile(null);
+                  setResult(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Results */}
+      {result && (
+        <div className="card">
+          <div className="card-header">
+            <h4>Upload Results</h4>
+          </div>
+          <div className="card-body">
+            <div className="grid grid-cols-2 gap-4" style={{ marginBottom: 20 }}>
+              <div
+                style={{
+                  padding: 16,
+                  borderRadius: 6,
+                  backgroundColor: "var(--color-success-bg)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <CheckCircle size={20} style={{ color: "var(--color-success)" }} />
+                <div>
+                  <div className="text-sm text-muted">Created</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-success)" }}>
+                    {result.created_count}
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{
+                  padding: 16,
+                  borderRadius: 6,
+                  backgroundColor: "var(--color-error-bg)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <XCircle size={20} style={{ color: "var(--color-error)" }} />
+                <div>
+                  <div className="text-sm text-muted">Failed</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-error)" }}>
+                    {result.failed_count}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {result.failed_users?.length > 0 && (
+              <div>
+                <h5 style={{ marginBottom: 8, color: "var(--color-error)" }}>Failed Entries</h5>
+                <div className="data-table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.failed_users.map((u, i) => (
+                        <tr key={i}>
+                          <td>{u.email}</td>
+                          <td className="text-error">{u.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </PageContainer>
   );
 }

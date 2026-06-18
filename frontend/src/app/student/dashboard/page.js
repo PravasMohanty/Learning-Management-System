@@ -1,117 +1,139 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { ProtectedRoute } from "@/lib/protected-route";
-import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { progressAPI, certificateAPI, courseAPI } from "@/lib/api";
+import PageContainer from "@/components/layout/PageContainer";
+import StatCard from "@/components/ui/StatCard";
+import { SkeletonStatCards } from "@/components/ui/Skeleton";
+import Badge from "@/components/ui/Badge";
 import Link from "next/link";
-import { useState, lazy } from "react";
-
-const CourseList = dynamic(() => import("@/components/courses/CourseList"), {
-  loading: () => <div className="animate-pulse">Loading courses...</div>,
-});
-
-const RecentAssignments = dynamic(
-  () => import("@/components/assignments/RecentAssignments"),
-  {
-    loading: () => <div className="animate-pulse">Loading assignments...</div>,
-  }
-);
+import { BookOpen, Award, TrendingUp, CheckCircle } from "lucide-react";
 
 export default function StudentDashboard() {
-  const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { data: progressData, isLoading: progressLoading } = useQuery({
+    queryKey: ["my-progress"],
+    queryFn: progressAPI.getMyProgress,
+  });
 
-  const handleLogout = async () => {
-    await logout();
-  };
+  const { data: certsData, isLoading: certsLoading } = useQuery({
+    queryKey: ["my-certificates"],
+    queryFn: certificateAPI.getMyCertificates,
+  });
+
+  const { data: coursesData, isLoading: coursesLoading } = useQuery({
+    queryKey: ["all-courses"],
+    queryFn: courseAPI.getAll,
+  });
+
+  const progress = progressData?.progress || [];
+  const certificates = certsData?.certificates || [];
+  const allCourses = coursesData?.data || [];
+  const publishedCourses = allCourses.filter((c) => c.published);
+
+  const enrolledCount = progress.length;
+  const completedCount = progress.filter((p) => p.completed).length;
+  const avgProgress = enrolledCount > 0
+    ? Math.round(progress.reduce((acc, p) => acc + (p.progress || 0), 0) / enrolledCount)
+    : 0;
+
+  const isLoading = progressLoading || certsLoading || coursesLoading;
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-gray-100">
-        {/* Header */}
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-700">Welcome, {user?.name}</span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
+    <PageContainer
+      title="Dashboard"
+      subtitle="Your learning overview"
+    >
+      {/* Stat Cards */}
+      {isLoading ? (
+        <SkeletonStatCards count={4} />
+      ) : (
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard
+            label="Enrolled Courses"
+            value={enrolledCount}
+            icon={BookOpen}
+            variant="primary"
+          />
+          <StatCard
+            label="Completed"
+            value={completedCount}
+            icon={CheckCircle}
+            variant="success"
+          />
+          <StatCard
+            label="Average Progress"
+            value={`${avgProgress}%`}
+            icon={TrendingUp}
+            variant="accent"
+          />
+          <StatCard
+            label="Certificates"
+            value={certificates.length}
+            icon={Award}
+            variant="info"
+          />
+        </div>
+      )}
 
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-gray-500 text-sm font-semibold mb-2">
-                Enrolled Courses
-              </h3>
-              <p className="text-3xl font-bold text-blue-600">0</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-gray-500 text-sm font-semibold mb-2">
-                Assignments
-              </h3>
-              <p className="text-3xl font-bold text-orange-600">0</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-gray-500 text-sm font-semibold mb-2">
-                Completed Quizzes
-              </h3>
-              <p className="text-3xl font-bold text-green-600">0</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-gray-500 text-sm font-semibold mb-2">
-                Average Grade
-              </h3>
-              <p className="text-3xl font-bold text-purple-600">N/A</p>
-            </div>
-          </div>
+      {/* My Courses Progress */}
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h3>My Courses</h3>
+          <Link href="/student/courses" className="btn btn-ghost btn-sm">
+            Browse All Courses →
+          </Link>
+        </div>
 
-          {/* Navigation Tabs */}
-          <div className="bg-white rounded-lg shadow mb-8">
-            <nav className="flex border-b">
-              <Link
-                href="/student/dashboard"
-                className="px-6 py-4 border-b-2 border-blue-600 text-blue-600 font-semibold"
-              >
-                Courses
+        {!isLoading && progress.length === 0 ? (
+          <div className="card">
+            <div className="card-body" style={{ textAlign: "center", padding: 40 }}>
+              <BookOpen size={32} style={{ color: "var(--color-muted)", marginBottom: 12 }} />
+              <p className="font-semibold" style={{ marginBottom: 4 }}>No courses yet</p>
+              <p className="text-sm text-muted" style={{ marginBottom: 16 }}>
+                Browse available courses and start learning
+              </p>
+              <Link href="/student/courses" className="btn btn-primary btn-sm">
+                Browse Courses
               </Link>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {progress.map((p) => (
               <Link
-                href="/student/assignments"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
+                key={p.id}
+                href={`/student/courses/${p.course_id}`}
+                className="card"
+                style={{ textDecoration: "none" }}
               >
-                Assignments
+                <div className="card-body" style={{ padding: "14px 20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                        {p.courses?.title || "Course"}
+                      </div>
+                      <div className="progress-bar" style={{ maxWidth: 300 }}>
+                        <div
+                          className={`progress-bar-fill ${p.completed ? "success" : ""}`}
+                          style={{ width: `${p.progress || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: 16 }}>
+                      <span className="text-sm font-medium">{p.progress || 0}%</span>
+                      {p.completed ? (
+                        <Badge variant="completed">Completed</Badge>
+                      ) : (
+                        <Badge variant="in-progress">In Progress</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </Link>
-              <Link
-                href="/student/profile"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Profile
-              </Link>
-            </nav>
+            ))}
           </div>
-
-          {/* Courses Section */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">My Courses</h2>
-            <CourseList studentView={true} />
-          </div>
-
-          {/* Recent Assignments */}
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Recent Assignments
-            </h2>
-            <RecentAssignments />
-          </div>
-        </main>
+        )}
       </div>
-    </ProtectedRoute>
+    </PageContainer>
   );
 }

@@ -1,4 +1,5 @@
-const { supabase } = require("../../config/supabase");
+const { supabase, supabaseAdmin } = require("../../config/supabase");
+const generateUserCode = require("../../utils/generateUserCode");
 
 const sendEmail = require("../../utils/mailSender");
 
@@ -22,7 +23,7 @@ const approveStudentRequest = async (req, res) => {
     // FETCH REQUEST
     // ==================================================
 
-    const { data, error: fetchError } = await supabase
+    const { data, error: fetchError } = await supabaseAdmin
       .from("registration_requests")
       .select("*")
       .eq("id", requestId)
@@ -52,7 +53,7 @@ const approveStudentRequest = async (req, res) => {
     // CHECK EXISTING PROFILE
     // ==================================================
 
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("email", request.email)
@@ -92,11 +93,12 @@ const approveStudentRequest = async (req, res) => {
     // CREATE PROFILE
     // ==================================================
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .insert([
         {
           id: authUser.id,
+          user_code: generateUserCode(),
           name: request.name,
           email: request.email,
           role: "student",
@@ -115,7 +117,7 @@ const approveStudentRequest = async (req, res) => {
     // UPDATE REQUEST STATUS
     // ==================================================
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from("registration_requests")
       .update({
         status: "approved",
@@ -200,7 +202,7 @@ const rejectStudentRequest = async (req, res) => {
     // FETCH REQUEST
     // ==================================================
 
-    const { data: request, error: fetchError } = await supabase
+    const { data: request, error: fetchError } = await supabaseAdmin
       .from("registration_requests")
       .select("*")
       .eq("id", requestId)
@@ -228,7 +230,7 @@ const rejectStudentRequest = async (req, res) => {
     // UPDATE STATUS
     // ==================================================
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from("registration_requests")
       .update({
         status: "rejected",

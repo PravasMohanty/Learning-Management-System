@@ -1,235 +1,203 @@
 "use client";
 
-import { ProtectedRoute } from "@/lib/protected-route";
-import { useAuth } from "@/lib/auth-context";
-import { userAPI } from "@/lib/api";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { userAPI, authAPI } from "@/lib/api";
+import PageContainer from "@/components/layout/PageContainer";
+import Badge from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { SkeletonLine } from "@/components/ui/Skeleton";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import toast from "react-hot-toast";
+import { Mail, Shield, Calendar, Lock } from "lucide-react";
+
+const passwordSchema = z.object({
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
 export default function StudentProfilePage() {
-  const { user, logout, changePassword } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const { data, isLoading } = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: userAPI.getProfile,
+  });
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await userAPI.getProfile();
-        if (response.success) {
-          setProfile(response.data);
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const profile = data?.data;
 
-    fetchProfile();
-  }, []);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { newPassword: "", confirmPassword: "" },
+  });
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    try {
-      await changePassword(newPassword);
-      setSuccess("Password changed successfully");
-      setNewPassword("");
-      setConfirmPassword("");
-      setShowPasswordForm(false);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-  };
+  const passwordMutation = useMutation({
+    mutationFn: ({ newPassword }) => authAPI.changePassword(newPassword),
+    onSuccess: (res) => {
+      if (!res.success) { toast.error(res.message); return; }
+      toast.success("Password changed successfully");
+      reset();
+    },
+    onError: (err) => toast.error(err.message || "Failed to change password"),
+  });
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-gray-100">
-        {/* Header */}
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-            >
-              Logout
-            </button>
-          </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          {/* Navigation Tabs */}
-          <div className="bg-white rounded-lg shadow mb-8">
-            <nav className="flex border-b">
-              <Link
-                href="/student/dashboard"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Courses
-              </Link>
-              <Link
-                href="/student/assignments"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Assignments
-              </Link>
-              <Link
-                href="/student/profile"
-                className="px-6 py-4 border-b-2 border-blue-600 text-blue-600 font-semibold"
-              >
-                Profile
-              </Link>
-            </nav>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
+    <PageContainer
+      title="Profile"
+      subtitle="Your account information"
+    >
+      {/* Profile Card */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div className="card-body">
+          {isLoading ? (
+            <div>
+              <SkeletonLine width="40%" />
+              <SkeletonLine width="60%" />
+              <SkeletonLine width="30%" />
             </div>
-          )}
-
-          {success && (
-            <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-              {success}
-            </div>
-          )}
-
-          {/* Profile Card */}
-          <div className="bg-white rounded-lg shadow mb-8">
-            <div className="px-6 py-8">
-              {loading ? (
-                <div className="animate-pulse space-y-4">
-                  <div className="h-4 bg-gray-300 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+          ) : !profile ? (
+            <div className="alert alert-error">Failed to load profile.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: "50%",
+                    backgroundColor: "var(--color-accent)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: "var(--color-primary)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {profile.name?.charAt(0).toUpperCase() || "?"}
                 </div>
-              ) : (
-                <>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    Profile Information
-                  </h2>
+                <div>
+                  <h2 style={{ marginBottom: 4 }}>{profile.name}</h2>
+                  <Badge variant={profile.role}>{profile.role}</Badge>
+                </div>
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div>
-                      <label className="block text-gray-600 text-sm font-semibold mb-2">
-                        Name
-                      </label>
-                      <p className="text-lg text-gray-900">
-                        {profile?.name || user?.name}
-                      </p>
-                    </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: 16,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: 16,
+                    backgroundColor: "var(--color-bg)",
+                    borderRadius: 6,
+                  }}
+                >
+                  <Mail size={18} style={{ color: "var(--color-muted)" }} />
+                  <div>
+                    <div className="text-xs text-muted">Email</div>
+                    <div style={{ fontWeight: 500 }}>{profile.email}</div>
+                  </div>
+                </div>
 
-                    <div>
-                      <label className="block text-gray-600 text-sm font-semibold mb-2">
-                        Email
-                      </label>
-                      <p className="text-lg text-gray-900">
-                        {profile?.email || user?.email}
-                      </p>
-                    </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: 16,
+                    backgroundColor: "var(--color-bg)",
+                    borderRadius: 6,
+                  }}
+                >
+                  <Shield size={18} style={{ color: "var(--color-muted)" }} />
+                  <div>
+                    <div className="text-xs text-muted">Role</div>
+                    <div style={{ fontWeight: 500, textTransform: "capitalize" }}>{profile.role}</div>
+                  </div>
+                </div>
 
-                    <div>
-                      <label className="block text-gray-600 text-sm font-semibold mb-2">
-                        Role
-                      </label>
-                      <p className="text-lg text-gray-900">
-                        {profile?.role || user?.role}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-600 text-sm font-semibold mb-2">
-                        Status
-                      </label>
-                      <p className="text-lg text-gray-900">
-                        {profile?.is_locked ? "Locked" : "Active"}
-                      </p>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: 16,
+                    backgroundColor: "var(--color-bg)",
+                    borderRadius: 6,
+                  }}
+                >
+                  <Calendar size={18} style={{ color: "var(--color-muted)" }} />
+                  <div>
+                    <div className="text-xs text-muted">Member Since</div>
+                    <div style={{ fontWeight: 500 }}>
+                      {profile.created_at
+                        ? new Date(profile.created_at).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "—"}
                     </div>
                   </div>
-
-                  {!showPasswordForm && (
-                    <button
-                      onClick={() => setShowPasswordForm(true)}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-                    >
-                      Change Password
-                    </button>
-                  )}
-
-                  {showPasswordForm && (
-                    <form
-                      onSubmit={handleChangePassword}
-                      className="mt-8 pt-8 border-t"
-                    >
-                      <h3 className="text-lg font-bold text-gray-900 mb-6">
-                        Change Password
-                      </h3>
-
-                      <div className="mb-4">
-                        <label className="block text-gray-700 font-semibold mb-2">
-                          New Password
-                        </label>
-                        <input
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                          required
-                        />
-                      </div>
-
-                      <div className="mb-6">
-                        <label className="block text-gray-700 font-semibold mb-2">
-                          Confirm Password
-                        </label>
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                          required
-                        />
-                      </div>
-
-                      <div className="flex gap-4">
-                        <button
-                          type="submit"
-                          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-                        >
-                          Update Password
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowPasswordForm(false)}
-                          className="px-6 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition font-semibold"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </>
-              )}
+                </div>
+              </div>
             </div>
-          </div>
-        </main>
+          )}
+        </div>
       </div>
-    </ProtectedRoute>
+
+      {/* Change Password */}
+      <div className="card">
+        <div className="card-header">
+          <h4 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Lock size={16} /> Change Password
+          </h4>
+        </div>
+        <div className="card-body">
+          <form
+            onSubmit={handleSubmit((d) => passwordMutation.mutate(d))}
+            noValidate
+            style={{ maxWidth: 400 }}
+          >
+            <Input
+              label="New Password"
+              type="password"
+              placeholder="Enter new password"
+              error={errors.newPassword?.message}
+              {...register("newPassword")}
+            />
+            <Input
+              label="Confirm Password"
+              type="password"
+              placeholder="Confirm new password"
+              error={errors.confirmPassword?.message}
+              {...register("confirmPassword")}
+            />
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={passwordMutation.isPending}
+            >
+              {passwordMutation.isPending ? "Changing..." : "Change Password"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </PageContainer>
   );
 }

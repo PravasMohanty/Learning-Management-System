@@ -1,102 +1,125 @@
 "use client";
 
-import { ProtectedRoute } from "@/lib/protected-route";
-import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { courseAPI, assignmentAPI, progressAPI } from "@/lib/api";
+import PageContainer from "@/components/layout/PageContainer";
+import { SkeletonTable } from "@/components/ui/Skeleton";
+import EmptyState from "@/components/ui/EmptyState";
 import Link from "next/link";
-import { useState } from "react";
+import { ClipboardList } from "lucide-react";
 
 export default function StudentAssignmentsPage() {
-  const { user, logout } = useAuth();
-  const [assignments, setAssignments] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { data: progressData, isLoading: progressLoading } = useQuery({
+    queryKey: ["my-progress"],
+    queryFn: progressAPI.getMyProgress,
+  });
 
-  const handleLogout = async () => {
-    await logout();
-  };
+  const enrolledCourseIds = (progressData?.progress || []).map((p) => p.course_id);
+
+  // We fetch all courses then filter to enrolled ones
+  const { data: coursesData, isLoading: coursesLoading } = useQuery({
+    queryKey: ["all-courses"],
+    queryFn: courseAPI.getAll,
+  });
+
+  const allCourses = coursesData?.data || [];
+  const enrolledCourses = allCourses.filter((c) => enrolledCourseIds.includes(c.id));
+
+  const isLoading = progressLoading || coursesLoading;
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-gray-100">
-        {/* Header */}
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Assignments</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-700">{user?.name}</span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
+    <PageContainer
+      title="Assignments"
+      subtitle="View assignments from your enrolled courses"
+    >
+      {isLoading ? (
+        <SkeletonTable rows={5} cols={4} />
+      ) : enrolledCourses.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            icon={ClipboardList}
+            title="No assignments"
+            description="Enroll in courses to see their assignments."
+            action={
+              <Link href="/student/courses" className="btn btn-primary btn-sm">
+                Browse Courses
+              </Link>
+            }
+          />
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {enrolledCourses.map((course) => (
+            <CourseAssignmentsSection key={course.id} course={course} />
+          ))}
+        </div>
+      )}
+    </PageContainer>
+  );
+}
 
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          {/* Navigation Tabs */}
-          <div className="bg-white rounded-lg shadow mb-8">
-            <nav className="flex border-b">
-              <Link
-                href="/student/dashboard"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Courses
-              </Link>
-              <Link
-                href="/student/assignments"
-                className="px-6 py-4 border-b-2 border-blue-600 text-blue-600 font-semibold"
-              >
-                Assignments
-              </Link>
-              <Link
-                href="/student/profile"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Profile
-              </Link>
-            </nav>
-          </div>
+function CourseAssignmentsSection({ course }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["course-assignments", course.id],
+    queryFn: () => assignmentAPI.getAll(course.id),
+  });
 
-          {/* Assignments List */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {loading ? (
-              <div className="p-6 text-center text-gray-500">
-                Loading assignments...
-              </div>
-            ) : assignments.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
-                No assignments yet
-              </div>
-            ) : (
-              <div className="divide-y">
-                {assignments.map((assignment) => (
-                  <div key={assignment.id} className="p-6 hover:bg-gray-50">
-                    <h3 className="font-semibold text-gray-900">
-                      {assignment.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-2">
-                      {assignment.description}
-                    </p>
-                    <div className="mt-4 flex justify-between items-center">
-                      <span className="text-sm text-gray-500">
-                        Due:{" "}
-                        {new Date(assignment.due_date).toLocaleDateString()}
-                      </span>
-                      <Link
-                        href={`/student/assignments/${assignment.id}`}
-                        className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-semibold hover:bg-blue-700 transition"
-                      >
-                        View
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </main>
+  const assignments = data?.data || [];
+
+  if (isLoading) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h4>{course.title}</h4>
+        </div>
+        <div className="card-body">
+          <div className="skeleton skeleton-line long" />
+          <div className="skeleton skeleton-line medium" />
+        </div>
       </div>
-    </ProtectedRoute>
+    );
+  }
+
+  if (assignments.length === 0) return null;
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h4>{course.title}</h4>
+        <span className="text-sm text-muted">{assignments.length} assignment{assignments.length !== 1 ? "s" : ""}</span>
+      </div>
+      <div>
+        {assignments.map((a) => (
+          <Link
+            key={a.id}
+            href={`/student/assignments/${a.id}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 20px",
+              borderBottom: "1px solid var(--color-border-light)",
+              textDecoration: "none",
+              color: "var(--color-text)",
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 500 }}>{a.title}</div>
+              {a.description && (
+                <div className="text-sm text-muted">{a.description.substring(0, 80)}</div>
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, marginLeft: 16 }}>
+              {a.max_marks && <span className="text-sm text-muted">{a.max_marks} marks</span>}
+              {a.due_date && (
+                <span className="text-sm text-muted">
+                  Due {new Date(a.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              )}
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }

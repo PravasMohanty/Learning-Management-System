@@ -1,188 +1,196 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Input } from "@/components/ui/Input";
+import { authAPI } from "@/lib/api";
 import Link from "next/link";
+import toast from "react-hot-toast";
+
+const studentSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Enter a valid email address"),
+});
+
+const adminSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  adminCode: z.string().min(1, "Admin code is required"),
+});
 
 export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    isAdmin: false,
-    adminCode: "",
+  const [activeTab, setActiveTab] = useState("student");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const studentForm = useForm({
+    resolver: zodResolver(studentSchema),
+    defaultValues: { name: "", email: "" },
   });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const { register } = useAuth();
-  const router = useRouter();
+  const adminForm = useForm({
+    resolver: zodResolver(adminSchema),
+    defaultValues: { name: "", email: "", password: "", adminCode: "" },
+  });
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (formData.isAdmin && !formData.adminCode) {
-      setError("Admin code is required");
-      return;
-    }
-
-    setLoading(true);
-
+  const onStudentSubmit = async (data) => {
     try {
-      const response = await register(
-        formData.name,
-        formData.email,
-        formData.password,
-        formData.isAdmin ? formData.adminCode : null
-      );
-
-      if (response.success) {
-        if (formData.isAdmin) {
-          router.push("/auth/login?registered=true");
-        } else {
-          router.push("/auth/register-success");
-        }
-      }
+      setSubmitting(true);
+      const response = await authAPI.registerStudent(data.name, data.email);
+      if (!response.success) throw new Error(response.message);
+      toast.success("Registration request submitted");
+      setSubmitted(true);
     } catch (err) {
-      setError(err.message || "Registration failed");
+      toast.error(err.message || "Registration failed");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  const onAdminSubmit = async (data) => {
+    try {
+      setSubmitting(true);
+      const response = await authAPI.registerAdmin(
+        data.name,
+        data.email,
+        data.password,
+        data.adminCode
+      );
+      if (!response.success) throw new Error(response.message);
+      toast.success("Admin account created. You can now sign in.");
+      setSubmitted(true);
+    } catch (err) {
+      toast.error(err.message || "Registration failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card" style={{ textAlign: "center" }}>
+          <div className="auth-logo">
+            <div className="auth-logo-text">
+              RESO <span className="auth-logo-accent">LMS</span>
+            </div>
+          </div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
+          <h2 style={{ marginBottom: 8 }}>
+            {activeTab === "student" ? "Request Submitted" : "Account Created"}
+          </h2>
+          <p className="text-muted" style={{ marginBottom: 24 }}>
+            {activeTab === "student"
+              ? "Your registration request has been submitted. An administrator will review and approve your access."
+              : "Your admin account has been created successfully. You can now sign in."}
+          </p>
+          <Link href="/auth/login" className="btn btn-primary">
+            Go to Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-        <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">
-          Register
-        </h2>
-
-        {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <div className="auth-logo-text">
+            RESO <span className="auth-logo-accent">LMS</span>
           </div>
+        </div>
+
+        <h1 className="auth-title">Create Account</h1>
+        <p className="auth-subtitle">Register for access to the platform</p>
+
+        <div className="tabs" style={{ marginBottom: 24 }}>
+          <button
+            className={`tab ${activeTab === "student" ? "active" : ""}`}
+            onClick={() => setActiveTab("student")}
+            type="button"
+          >
+            Student
+          </button>
+          <button
+            className={`tab ${activeTab === "admin" ? "active" : ""}`}
+            onClick={() => setActiveTab("admin")}
+            type="button"
+          >
+            Admin
+          </button>
+        </div>
+
+        {activeTab === "student" ? (
+          <form onSubmit={studentForm.handleSubmit(onStudentSubmit)} noValidate>
+            <Input
+              label="Full Name"
+              placeholder="Enter your full name"
+              error={studentForm.formState.errors.name?.message}
+              {...studentForm.register("name")}
+            />
+            <Input
+              label="Email Address"
+              type="email"
+              placeholder="you@institution.edu"
+              error={studentForm.formState.errors.email?.message}
+              {...studentForm.register("email")}
+            />
+            <div className="alert alert-info" style={{ marginBottom: 20 }}>
+              Your request will be reviewed by an administrator. You will receive an email once approved.
+            </div>
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg w-full"
+              disabled={submitting}
+            >
+              {submitting ? "Submitting..." : "Submit Request"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={adminForm.handleSubmit(onAdminSubmit)} noValidate>
+            <Input
+              label="Full Name"
+              placeholder="Enter your full name"
+              error={adminForm.formState.errors.name?.message}
+              {...adminForm.register("name")}
+            />
+            <Input
+              label="Email Address"
+              type="email"
+              placeholder="admin@institution.edu"
+              error={adminForm.formState.errors.email?.message}
+              {...adminForm.register("email")}
+            />
+            <Input
+              label="Password"
+              type="password"
+              placeholder="Create a password"
+              error={adminForm.formState.errors.password?.message}
+              {...adminForm.register("password")}
+            />
+            <Input
+              label="Admin Code"
+              type="password"
+              placeholder="Enter the admin secret code"
+              error={adminForm.formState.errors.adminCode?.message}
+              {...adminForm.register("adminCode")}
+            />
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg w-full"
+              disabled={submitting}
+            >
+              {submitting ? "Creating Account..." : "Create Admin Account"}
+            </button>
+          </form>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">
-              Full Name
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                name="isAdmin"
-                checked={formData.isAdmin}
-                onChange={handleChange}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <span className="ml-2 text-gray-700 font-semibold">
-                Register as Admin
-              </span>
-            </label>
-          </div>
-
-          {formData.isAdmin && (
-            <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-2">
-                Admin Code
-              </label>
-              <input
-                type="password"
-                name="adminCode"
-                value={formData.adminCode}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                required={formData.isAdmin}
-              />
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400"
-          >
-            {loading ? "Registering..." : "Register"}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <p className="text-gray-600">
-            Already have an account?{" "}
-            <Link href="/auth/login" className="text-blue-600 hover:text-blue-800 font-semibold">
-              Login here
-            </Link>
-          </p>
+        <div className="auth-footer">
+          Already have an account? <Link href="/auth/login">Sign In</Link>
         </div>
       </div>
     </div>

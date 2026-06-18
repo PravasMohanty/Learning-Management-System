@@ -1,4 +1,4 @@
-const { supabase } = require("../../config/supabase");
+const { supabase, supabaseAdmin } = require("../../config/supabase");
 
 const sendEmail = require("../../utils/mailSender");
 
@@ -89,7 +89,7 @@ const forgotPassword = async (req, res) => {
     // ==========================================
 
     if (!otp && !newPassword) {
-      const { data: user } = await supabase
+      const { data: user } = await supabaseAdmin
         .from("profiles")
         .select("name, email")
         .eq("email", email)
@@ -143,7 +143,7 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("email", email)

@@ -1,4 +1,5 @@
-const { supabase } = require("../../config/supabase");
+const { supabaseAdmin: supabase } = require("../../config/supabase");
+const generateUserCode = require("../../utils/generateUserCode");
 
 const fs = require("fs");
 
@@ -56,6 +57,7 @@ const createUsersFromCSV = async (req, res) => {
           .from("profiles")
           .insert({
             id: authUser.id,
+            user_code: generateUserCode(),
             name,
             email,
             role: "student",

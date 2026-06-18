@@ -1,4 +1,4 @@
-const { supabase } = require("../../config/supabase");
+const { supabaseAdmin: supabase } = require("../../config/supabase");
 
 const createAssignment = async (req, res) => {
     try {

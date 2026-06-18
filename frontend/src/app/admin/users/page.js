@@ -1,106 +1,180 @@
 "use client";
 
-import { ProtectedRoute } from "@/lib/protected-route";
-import { useAuth } from "@/lib/auth-context";
-import Link from "next/link";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { userAPI } from "@/lib/api";
+import PageContainer from "@/components/layout/PageContainer";
+import DataTable from "@/components/ui/DataTable";
+import Badge from "@/components/ui/Badge";
+import Modal from "@/components/ui/Modal";
+import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { Lock, Unlock, Trash2, Eye } from "lucide-react";
 
 export default function AdminUsersPage() {
-  const { user, logout } = useAuth();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [deleteModal, setDeleteModal] = useState(null);
 
-  const handleLogout = async () => {
-    await logout();
-  };
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: userAPI.getAll,
+  });
+
+  const lockMutation = useMutation({
+    mutationFn: (userId) => userAPI.lockAccount(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User account locked");
+    },
+    onError: (err) => toast.error(err.message || "Failed to lock account"),
+  });
+
+  const unlockMutation = useMutation({
+    mutationFn: (userId) => userAPI.unlockAccount(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User account unlocked");
+    },
+    onError: (err) => toast.error(err.message || "Failed to unlock account"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId) => userAPI.delete(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User deleted");
+      setDeleteModal(null);
+    },
+    onError: (err) => toast.error(err.message || "Failed to delete user"),
+  });
+
+  const users = data?.data || [];
+
+  const columns = [
+    { header: "Name", accessor: "name" },
+    { header: "Email", accessor: "email" },
+    {
+      header: "Role",
+      accessor: "role",
+      cell: (row) => <Badge variant={row.role}>{row.role}</Badge>,
+    },
+    {
+      header: "Status",
+      accessor: "is_locked",
+      cell: (row) => (
+        <Badge variant={row.is_locked ? "locked" : "active"}>
+          {row.is_locked ? "Locked" : "Active"}
+        </Badge>
+      ),
+    },
+    {
+      header: "Joined",
+      accessor: "created_at",
+      cell: (row) =>
+        row.created_at
+          ? new Date(row.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "—",
+    },
+    {
+      header: "Actions",
+      accessor: null,
+      sortable: false,
+      width: "140px",
+      cell: (row) => (
+        <div className="data-table-actions">
+          <button
+            className="btn-icon"
+            title="View profile"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/admin/users/${row.id}`);
+            }}
+          >
+            <Eye size={16} />
+          </button>
+          {row.is_locked ? (
+            <button
+              className="btn-icon"
+              title="Unlock account"
+              onClick={(e) => {
+                e.stopPropagation();
+                unlockMutation.mutate(row.id);
+              }}
+            >
+              <Unlock size={16} />
+            </button>
+          ) : (
+            <button
+              className="btn-icon"
+              title="Lock account"
+              onClick={(e) => {
+                e.stopPropagation();
+                lockMutation.mutate(row.id);
+              }}
+            >
+              <Lock size={16} />
+            </button>
+          )}
+          <button
+            className="btn-icon"
+            title="Delete user"
+            style={{ color: "var(--color-error)" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteModal(row);
+            }}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <ProtectedRoute requiredRole="admin">
-      <div className="min-h-screen bg-gray-100">
-        {/* Header */}
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">
-              User Management
-            </h1>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-700">Welcome, {user?.name}</span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
+    <PageContainer
+      title="Users"
+      subtitle="Manage all registered users"
+    >
+      <DataTable
+        columns={columns}
+        data={users}
+        loading={isLoading}
+        searchPlaceholder="Search by name or email..."
+        emptyTitle="No users found"
+        emptyDescription="Users will appear here once they register."
+      />
 
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          {/* Navigation Tabs */}
-          <div className="bg-white rounded-lg shadow mb-8">
-            <nav className="flex border-b flex-wrap">
-              <Link
-                href="/admin/dashboard"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Courses
-              </Link>
-              <Link
-                href="/admin/users"
-                className="px-6 py-4 border-b-2 border-blue-600 text-blue-600 font-semibold"
-              >
-                Users
-              </Link>
-              <Link
-                href="/admin/requests"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Registration Requests
-              </Link>
-              <Link
-                href="/admin/bulk-upload"
-                className="px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800 font-semibold"
-              >
-                Bulk Upload
-              </Link>
-            </nav>
-          </div>
-
-          {/* Users Table */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-xl font-bold text-gray-900">All Users</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-gray-900">
-                      Loading users...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </main>
-      </div>
-    </ProtectedRoute>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteModal}
+        onClose={() => setDeleteModal(null)}
+        title="Delete User"
+        footer={
+          <>
+            <button className="btn btn-outline" onClick={() => setDeleteModal(null)}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={() => deleteMutation.mutate(deleteModal.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete User"}
+            </button>
+          </>
+        }
+      >
+        <p>
+          Are you sure you want to delete <strong>{deleteModal?.name}</strong> (
+          {deleteModal?.email})? This action cannot be undone.
+        </p>
+      </Modal>
+    </PageContainer>
   );
 }
