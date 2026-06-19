@@ -120,11 +120,7 @@ const approveStudentRequest = async (req, res) => {
     const { error: updateError } = await supabaseAdmin
       .from("registration_requests")
       .update({
-        status: "approved",
-
-        approved_at: new Date().toISOString(),
-
-        approved_by: req.user.id,
+        status: "accepted",
       })
       .eq("id", requestId);
 

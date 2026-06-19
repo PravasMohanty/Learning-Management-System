@@ -8,7 +8,12 @@ const createModule = async (req, res) => {
   try {
     const courseId = req.params.courseId;
 
-    const { title, description, position } = req.body;
+    const {
+      title,
+      content,
+      video_url,
+      lesson_order,
+    } = req.body;
 
     // ==================================================
     // VALIDATION
@@ -42,17 +47,15 @@ const createModule = async (req, res) => {
     // CREATE MODULE
     // ==================================================
 
-    const { data: module, error } = await supabase
+    const { data: newModule, error } = await supabase
       .from("course_modules")
       .insert([
         {
           course_id: courseId,
-
           title,
-
-          description: description || null,
-
-          position: position || 1,
+          content: content || null,
+          video_url: video_url || null,
+          lesson_order: lesson_order || 1,
         },
       ])
       .select()
@@ -72,7 +75,7 @@ const createModule = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Module created successfully",
-      data: module,
+      data: newModule,
     });
   } catch (error) {
     console.error("[CREATE MODULE ERROR]", error);
@@ -117,7 +120,7 @@ const getCourseModules = async (req, res) => {
       .from("course_modules")
       .select("*")
       .eq("course_id", courseId)
-      .order("position", { ascending: true });
+      .order("lesson_order", { ascending: true });
 
     if (error) {
       return res.status(500).json({
@@ -152,7 +155,12 @@ const updateModule = async (req, res) => {
   try {
     const moduleId = req.params.moduleId;
 
-    const { title, description, position } = req.body;
+    const {
+      title,
+      content,
+      video_url,
+      lesson_order,
+    } = req.body;
 
     // ==================================================
     // CHECK MODULE EXISTS
@@ -178,17 +186,10 @@ const updateModule = async (req, res) => {
     const { data: updatedModule, error } = await supabase
       .from("course_modules")
       .update({
-        title: title || existingModule.title,
-
-        description:
-          description || existingModule.description,
-
-        position:
-          position !== undefined
-            ? position
-            : existingModule.position,
-
-        updated_at: new Date().toISOString(),
+        title: title !== undefined ? title : existingModule.title,
+        content: content !== undefined ? content : existingModule.content,
+        video_url: video_url !== undefined ? video_url : existingModule.video_url,
+        lesson_order: lesson_order !== undefined ? lesson_order : existingModule.lesson_order,
       })
       .eq("id", moduleId)
       .select()

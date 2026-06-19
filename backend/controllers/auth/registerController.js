@@ -136,7 +136,6 @@ const submitStudentRegistrationRequest = async (req, res) => {
       success: true,
       message: "Registration request submitted successfully",
     });
-
   } catch (error) {
     console.error("[STUDENT REQUEST ERROR]", error);
 
