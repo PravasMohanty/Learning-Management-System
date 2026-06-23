@@ -89,6 +89,8 @@ const generateCertificate = async (req, res) => {
     const certificateId =
       `CERT-${Date.now()}`;
 
+    const issueDate = new Date();
+
     // ==========================================
     // GENERATE PDF
     // ==========================================
@@ -97,9 +99,9 @@ const generateCertificate = async (req, res) => {
       await certificateService.generateCertificatePdf({
         certificateId,
         studentName: req.user.name,
-        studentEmail: req.user.email,
         courseName: course.title,
-        issueDate: new Date(),
+        issueDate:
+          issueDate.toLocaleDateString(),
       });
 
     // ==========================================

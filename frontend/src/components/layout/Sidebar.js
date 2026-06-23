@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
-  Upload,
+  UserPlus,
   Award,
   ClipboardList,
   UserCircle,
@@ -19,7 +19,7 @@ import {
 const adminNav = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Users", href: "/admin/users", icon: Users },
-  { label: "Bulk Upload", href: "/admin/bulk-upload", icon: Upload },
+  { label: "Students", href: "/admin/students", icon: UserPlus },
   { label: "Courses", href: "/admin/courses", icon: BookOpen },
   { label: "Certificates", href: "/admin/certificates", icon: Award },
 ];

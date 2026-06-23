@@ -96,11 +96,51 @@ const updateProgress = async (req, res) => {
       completed &&
       !data.certificate_issued
     ) {
+      try {
+        // Fetch student name
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", studentId)
+          .single();
 
-      await certificateService.generateCertificate(
-        studentId,
-        courseId
-      );
+        // Fetch course title
+        const { data: course } = await supabase
+          .from("courses")
+          .select("title")
+          .eq("id", courseId)
+          .single();
+
+        if (profile && course) {
+          const certificateId =
+            `CERT-${Date.now()}`;
+
+          const pdfUrl =
+            await certificateService.generateCertificatePdf({
+              certificateId,
+              studentName: profile.name,
+              courseName: course.title,
+              issueDate:
+                new Date().toLocaleDateString(),
+            });
+
+          await supabase
+            .from("certificates")
+            .insert([{
+              certificate_id: certificateId,
+              student_id: studentId,
+              course_id: courseId,
+              issue_date: new Date(),
+              pdf_url: pdfUrl,
+              status: "active",
+            }]);
+        }
+      } catch (certError) {
+        console.error(
+          "[AUTO CERTIFICATE ERROR]",
+          certError
+        );
+      }
 
       await supabase
         .from("course_progress")

@@ -1,4 +1,4 @@
-const { supabase } = require("../config/supabase");
+const { supabase, supabaseAdmin } = require("../config/supabase");
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -6,9 +6,15 @@ const authMiddleware = async (req, res, next) => {
     // GET TOKEN
     // ==========================================
 
-    const authHeader = req.headers.authorization;
+    let token = null;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    } else if (req.query.token) {
+      token = req.query.token;
+    }
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         message: "Access token missing",
@@ -16,19 +22,17 @@ const authMiddleware = async (req, res, next) => {
     }
 
     // ==========================================
-    // EXTRACT TOKEN
-    // ==========================================
-
-    const token = authHeader.split(" ")[1];
-
-    // ==========================================
     // VERIFY USER
     // ==========================================
 
+    // Use supabaseAdmin to avoid shared auth state issues.
+    // The main supabase client's session gets mutated by
+    // signInWithPassword calls, which can cause getUser()
+    // to fail for other users' tokens.
     const {
       data: { user },
       error,
-    } = await supabase.auth.getUser(token);
+    } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !user) {
       return res.status(401).json({
@@ -41,7 +45,7 @@ const authMiddleware = async (req, res, next) => {
     // FETCH PROFILE
     // ==========================================
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("*")
       .eq("id", user.id)

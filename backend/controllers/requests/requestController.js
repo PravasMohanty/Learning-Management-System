@@ -9,6 +9,48 @@ const {
   approvalFailedTemplate,
 } = require("../../utils/mailTemplates");
 
+
+// ==================================================
+// FETCH ALL REGISTRATION REQUESTS
+// ==================================================
+
+const viewAllRequests = async (req, res) => {
+  try {
+
+    const { data: requests, error } = await supabaseAdmin
+      .from("registration_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[VIEW REQUESTS ERROR]", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch registration requests",
+      });
+    }
+
+    // ==================================================
+    // RESPONSE
+    // ==================================================
+
+    return res.status(200).json({
+      success: true,
+      totalRequests: requests.length,
+      requests,
+    });
+  } catch (error) {
+    console.error("[VIEW REQUESTS ERROR]", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch registration requests",
+    });
+  }
+};
+
+
 // ======================================================
 // APPROVE STUDENT REGISTRATION REQUEST
 // ======================================================
@@ -284,4 +326,5 @@ const rejectStudentRequest = async (req, res) => {
 module.exports = {
   approveStudentRequest,
   rejectStudentRequest,
+  viewAllRequests
 };

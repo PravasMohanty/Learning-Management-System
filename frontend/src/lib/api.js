@@ -59,6 +59,67 @@ export const apiCall = async (endpoint, options = {}) => {
   }
 };
 
+export const apiDownload = async (endpoint, filename, options = {}) => {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  const headers = { ...options.headers };
+
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  try {
+    let response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401) {
+      const refreshToken = localStorage.getItem("refresh_token");
+      if (refreshToken) {
+        const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          localStorage.setItem("access_token", refreshData.data.access_token);
+          localStorage.setItem("refresh_token", refreshData.data.refresh_token);
+
+          headers.Authorization = `Bearer ${refreshData.data.access_token}`;
+          response = await fetch(url, { ...options, headers });
+        } else {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          localStorage.removeItem("user");
+          window.location.href = "/auth/login";
+          return;
+        }
+      }
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to download file");
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename || "download";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error("[Download Error]", error);
+    throw error;
+  }
+};
+
 // ============================================================
 // AUTH APIs
 // ============================================================
@@ -231,8 +292,10 @@ export const userAPI = {
 // ============================================================
 
 export const bulkUserAPI = {
-  getTemplateUrl: () =>
-    `${API_BASE_URL}/bulk-users/template/download`,
+  downloadTemplate: () =>
+    apiDownload("/bulk-users/template/download", "student_upload_template.csv", {
+      method: "GET",
+    }),
 
   uploadCSV: (file) => {
     const formData = new FormData();
@@ -253,6 +316,9 @@ export const bulkUserAPI = {
 // ============================================================
 
 export const requestAPI = {
+  getAll: () =>
+    apiCall("/requests/view-all", { method: "GET" }),
+
   approve: (requestId) =>
     apiCall(`/requests/${requestId}/approve`, { method: "PUT" }),
 

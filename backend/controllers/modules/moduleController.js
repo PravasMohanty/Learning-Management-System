@@ -11,8 +11,10 @@ const createModule = async (req, res) => {
     const {
       title,
       content,
+      description,
       video_url,
       lesson_order,
+      position,
     } = req.body;
 
     // ==================================================
@@ -44,6 +46,27 @@ const createModule = async (req, res) => {
     }
 
     // ==================================================
+    // DETERMINE LESSON ORDER
+    // Accept both "lesson_order" and "position" from frontend.
+    // If neither is provided, auto-calculate next order.
+    // ==================================================
+
+    let order = lesson_order || position;
+
+    if (!order) {
+      const { data: existing } = await supabase
+        .from("course_modules")
+        .select("lesson_order")
+        .eq("course_id", courseId)
+        .order("lesson_order", { ascending: false })
+        .limit(1);
+
+      order = existing && existing.length > 0
+        ? existing[0].lesson_order + 1
+        : 1;
+    }
+
+    // ==================================================
     // CREATE MODULE
     // ==================================================
 
@@ -53,9 +76,9 @@ const createModule = async (req, res) => {
         {
           course_id: courseId,
           title,
-          content: content || null,
+          content: content || description || null,
           video_url: video_url || null,
-          lesson_order: lesson_order || 1,
+          lesson_order: order,
         },
       ])
       .select()
@@ -158,8 +181,10 @@ const updateModule = async (req, res) => {
     const {
       title,
       content,
+      description,
       video_url,
       lesson_order,
+      position,
     } = req.body;
 
     // ==================================================
@@ -183,13 +208,21 @@ const updateModule = async (req, res) => {
     // UPDATE MODULE
     // ==================================================
 
+    const newOrder = lesson_order !== undefined ? lesson_order
+      : position !== undefined ? position
+      : existingModule.lesson_order;
+
+    const newContent = content !== undefined ? content
+      : description !== undefined ? description
+      : existingModule.content;
+
     const { data: updatedModule, error } = await supabase
       .from("course_modules")
       .update({
         title: title !== undefined ? title : existingModule.title,
-        content: content !== undefined ? content : existingModule.content,
+        content: newContent,
         video_url: video_url !== undefined ? video_url : existingModule.video_url,
-        lesson_order: lesson_order !== undefined ? lesson_order : existingModule.lesson_order,
+        lesson_order: newOrder,
       })
       .eq("id", moduleId)
       .select()

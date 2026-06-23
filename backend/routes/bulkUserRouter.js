@@ -15,8 +15,8 @@ const upload = multer({ dest: "uploads/" });
 // BULK USER ROUTES
 // ======================================================
 
-// Download CSV template for bulk user creation (admin only)
-bulkUserRouter.get("/template/download", authMiddleware, adminMiddleware, downloadCSVTemplate);
+// Download CSV template for bulk user creation (public - no auth needed)
+bulkUserRouter.get("/template/download", downloadCSVTemplate);
 
 // Create users from CSV file (admin only)
 bulkUserRouter.post("/upload-csv", authMiddleware, adminMiddleware, upload.single("file"), createUsersFromCSV);

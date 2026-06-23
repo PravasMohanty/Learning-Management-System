@@ -144,8 +144,8 @@ export default function CourseDetailPage({ params }) {
 
   return (
     <PageContainer
-      title={isLoading ? "Loading..." : course?.title || "Course"}
-      subtitle={isLoading ? "" : course?.description?.substring(0, 100) + (course?.description?.length > 100 ? "..." : "")}
+      title="Course Details"
+      subtitle=""
       actions={
         <div style={{ display: "flex", gap: 8 }}>
           <Link href={`/admin/courses/${courseId}/edit`} className="btn btn-outline">
@@ -160,27 +160,165 @@ export default function CourseDetailPage({ params }) {
         </div>
       }
     >
-      {/* Course Info Card */}
+      {/* Course Hero Card */}
       {isLoading ? (
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-body">
-            <SkeletonLine width="50%" />
-            <SkeletonLine width="30%" />
-            <SkeletonLine width="40%" />
+          <div className="card-body" style={{ display: "flex", gap: 24 }}>
+            <div
+              className="skeleton"
+              style={{
+                width: 280,
+                minHeight: 170,
+                borderRadius: "var(--radius-md)",
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ flex: 1 }}>
+              <SkeletonLine width="60%" />
+              <SkeletonLine width="80%" />
+              <SkeletonLine width="40%" />
+            </div>
           </div>
         </div>
       ) : course ? (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-body">
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-              <Badge variant={course.published ? "published" : "draft"}>
-                {course.published ? "Published" : "Draft"}
-              </Badge>
-              {course.level && <Badge variant={course.level}>{course.level}</Badge>}
-              {course.category && <Badge variant="muted">{course.category}</Badge>}
-              <span className="text-sm text-muted">
-                Price: {course.price > 0 ? `₹${course.price}` : "Free"}
-              </span>
+        <div className="card" style={{ marginBottom: 24, overflow: "hidden" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 0,
+              flexWrap: "nowrap",
+            }}
+          >
+            {/* Thumbnail */}
+            <div
+              style={{
+                width: 300,
+                minHeight: 200,
+                flexShrink: 0,
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {course.thumbnail_url ? (
+                <img
+                  src={course.thumbnail_url}
+                  alt={course.title}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                    position: "absolute",
+                    inset: 0,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    background:
+                      "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 50%, var(--color-accent-dark) 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "absolute",
+                    inset: 0,
+                  }}
+                >
+                  <BookOpen
+                    size={48}
+                    style={{ color: "rgba(255,255,255,0.3)" }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Course Details */}
+            <div
+              style={{
+                flex: 1,
+                padding: "24px 28px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                gap: 12,
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 700,
+                    color: "var(--color-text)",
+                    marginBottom: 6,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {course.title}
+                </h2>
+                {course.description && (
+                  <p
+                    className="text-muted"
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                      maxWidth: 520,
+                    }}
+                  >
+                    {course.description.length > 180
+                      ? course.description.substring(0, 180) + "..."
+                      : course.description}
+                  </p>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <Badge variant={course.published ? "published" : "draft"}>
+                  {course.published ? "Published" : "Draft"}
+                </Badge>
+                {course.level && (
+                  <Badge variant={course.level}>{course.level}</Badge>
+                )}
+                {course.category && (
+                  <Badge variant="muted">{course.category}</Badge>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 20,
+                  alignItems: "center",
+                  fontSize: 13,
+                  color: "var(--color-muted)",
+                  marginTop: 2,
+                }}
+              >
+                <span>
+                  <strong style={{ color: "var(--color-text)", fontSize: 15 }}>
+                    {course.price > 0 ? `₹${course.price}` : "Free"}
+                  </strong>
+                </span>
+                <span style={{ color: "var(--color-border)" }}>•</span>
+                <span>{modules.length} module{modules.length !== 1 ? "s" : ""}</span>
+                <span style={{ color: "var(--color-border)" }}>•</span>
+                <span>
+                  Created{" "}
+                  {new Date(course.created_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
             </div>
           </div>
         </div>
