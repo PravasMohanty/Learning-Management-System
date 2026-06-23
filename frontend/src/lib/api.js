@@ -393,3 +393,53 @@ export const certificateAPI = {
   generate: (courseId) =>
     apiCall(`/certificates/${courseId}/generate`, { method: "POST" }),
 };
+
+// ============================================================
+// DISCUSSION APIs
+// ============================================================
+
+export const discussionAPI = {
+  getCourseDiscussions: (courseId, params = {}) => {
+    const query = new URLSearchParams();
+    if (params.module_id) query.set("module_id", params.module_id);
+    if (params.status) query.set("status", params.status);
+    if (params.search) query.set("search", params.search);
+    const qs = query.toString();
+    return apiCall(`/discussions/course/${courseId}${qs ? `?${qs}` : ""}`, {
+      method: "GET",
+    });
+  },
+
+  getById: (discussionId) =>
+    apiCall(`/discussions/${discussionId}`, { method: "GET" }),
+
+  create: (data) =>
+    apiCall("/discussions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (discussionId, data) =>
+    apiCall(`/discussions/${discussionId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (discussionId) =>
+    apiCall(`/discussions/${discussionId}`, { method: "DELETE" }),
+
+  addReply: (discussionId, body) =>
+    apiCall(`/discussions/${discussionId}/replies`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+
+  deleteReply: (replyId) =>
+    apiCall(`/discussions/replies/${replyId}`, { method: "DELETE" }),
+
+  markResolved: (discussionId) =>
+    apiCall(`/discussions/${discussionId}/resolve`, { method: "PUT" }),
+
+  toggleLock: (discussionId) =>
+    apiCall(`/discussions/${discussionId}/lock`, { method: "PUT" }),
+};

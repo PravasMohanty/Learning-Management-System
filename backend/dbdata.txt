@@ -224,6 +224,61 @@ Quiz questions/options/answers.
 
 ---
 
+# 8. `discussions`
+
+Course discussion threads (Q&A forum).
+
+---
+
+## Purpose
+
+Students ask doubts related to a course or specific module.
+Teachers/admins answer and moderate.
+
+---
+
+## Fields
+
+| Field      | Type        | Description                          |
+| ---------- | ----------- | ------------------------------------ |
+| id         | UUID        | Discussion ID                        |
+| course_id  | UUID        | FK → courses.id                      |
+| module_id  | UUID        | FK → course_modules.id (optional)    |
+| author_id  | UUID        | FK → profiles.id                     |
+| title      | TEXT        | Discussion title/question            |
+| body       | TEXT        | Full question body                   |
+| status     | TEXT        | open / resolved                      |
+| is_locked  | BOOLEAN     | Locked — no new replies              |
+| created_at | TIMESTAMPTZ | Creation time                        |
+| updated_at | TIMESTAMPTZ | Last update                          |
+
+---
+
+# 9. `discussion_replies`
+
+Replies to discussion threads.
+
+---
+
+## Purpose
+
+Threaded replies to discussions from students and teachers.
+
+---
+
+## Fields
+
+| Field         | Type        | Description                       |
+| ------------- | ----------- | --------------------------------- |
+| id            | UUID        | Reply ID                          |
+| discussion_id | UUID        | FK → discussions.id (CASCADE)     |
+| author_id     | UUID        | FK → profiles.id                  |
+| body          | TEXT        | Reply content                     |
+| created_at    | TIMESTAMPTZ | Creation time                     |
+| updated_at    | TIMESTAMPTZ | Last update                       |
+
+---
+
 # FUTURE TABLES (NOT IMPLEMENTED YET)
 
 These are planned for later phases.

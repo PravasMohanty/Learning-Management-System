@@ -25,6 +25,7 @@ const bulkUserRouter = require("../routes/bulkUserRouter");
 const progressRouter = require("../routes/progressRouter");
 const healthRouter = require("../routes/healthRouter");
 const certificateRouter = require("../routes/certificateRouter");
+const discussionRouter = require("../routes/discussionRouter");
 
 // ======================================================
 // API ROUTES
@@ -62,6 +63,9 @@ app.use("/api/progress", progressRouter);
 
 // Certificate routes
 app.use("/api/certificates", certificateRouter);
+
+// Discussion routes
+app.use("/api/discussions", discussionRouter);
 
 // ======================================================
 // DEFAULT ROUTES

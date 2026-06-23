@@ -23,6 +23,7 @@ import {
   ClipboardList,
   Upload,
   BookOpen,
+  MessageSquare,
 } from "lucide-react";
 
 const moduleSchema = z.object({
@@ -153,6 +154,9 @@ export default function CourseDetailPage({ params }) {
           </Link>
           <Link href={`/admin/courses/${courseId}/assignments`} className="btn btn-outline">
             <ClipboardList size={16} /> Assignments ({assignments.length})
+          </Link>
+          <Link href={`/admin/courses/${courseId}/discussions`} className="btn btn-outline">
+            <MessageSquare size={16} /> Discussions
           </Link>
           <Link href="/admin/courses" className="btn btn-ghost">
             <ArrowLeft size={16} /> Back

@@ -9,7 +9,7 @@ import { SkeletonLine } from "@/components/ui/Skeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { ArrowLeft, Layers, BookOpen, ClipboardList, PlayCircle } from "lucide-react";
+import { ArrowLeft, Layers, BookOpen, ClipboardList, PlayCircle, MessageSquare } from "lucide-react";
 
 export default function StudentCourseDetailPage({ params }) {
   const { courseId } = use(params);
@@ -205,6 +205,28 @@ export default function StudentCourseDetailPage({ params }) {
               </div>
             </div>
           )}
+
+          {/* Discussions */}
+          <div style={{ marginTop: 24 }}>
+            <div style={{ marginBottom: 12 }}>
+              <h3><MessageSquare size={18} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />Course Discussions</h3>
+            </div>
+            <Link
+              href={`/student/courses/${courseId}/discussions`}
+              className="card"
+              style={{ textDecoration: "none", display: "block" }}
+            >
+              <div className="card-body" style={{ padding: "14px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>View & Ask Questions</div>
+                    <div className="text-sm text-muted">Ask doubts, share knowledge, and find answers from other students and teachers</div>
+                  </div>
+                  <ArrowLeft size={16} style={{ transform: "rotate(180deg)", color: "var(--color-muted)" }} />
+                </div>
+              </div>
+            </Link>
+          </div>
         </>
       )}
     </PageContainer>
