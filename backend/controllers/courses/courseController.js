@@ -1,6 +1,51 @@
 const { supabaseAdmin: supabase } = require("../../config/supabase");
 
 // ======================================================
+// HELPER — Upload thumbnail to Supabase Storage
+// ======================================================
+
+const uploadThumbnail = async (file, courseId) => {
+  const ext = file.mimetype === "image/png" ? "png" : "jpg";
+  const fileName = `${courseId}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("course-thumbnails")
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(`Thumbnail upload failed: ${uploadError.message}`);
+  }
+
+  const { data: urlData } = supabase.storage
+    .from("course-thumbnails")
+    .getPublicUrl(fileName);
+
+  return urlData.publicUrl;
+};
+
+// ======================================================
+// HELPER — Delete old thumbnail from Supabase Storage
+// ======================================================
+
+const deleteThumbnail = async (thumbnailUrl) => {
+  if (!thumbnailUrl) return;
+
+  try {
+    // Extract the file name from the public URL
+    const parts = thumbnailUrl.split("/course-thumbnails/");
+    if (parts.length < 2) return;
+
+    const filePath = parts[1];
+    await supabase.storage.from("course-thumbnails").remove([filePath]);
+  } catch (err) {
+    console.warn("[DELETE THUMBNAIL WARN]", err.message);
+  }
+};
+
+// ======================================================
 // CREATE COURSE
 // ======================================================
 
@@ -9,7 +54,6 @@ const createCourse = async (req, res) => {
     const {
       title,
       description,
-      thumbnail_url,
       price,
       level,
       category,
@@ -54,7 +98,7 @@ const createCourse = async (req, res) => {
     }
 
     // ==================================================
-    // CREATE COURSE
+    // CREATE COURSE (without thumbnail first to get ID)
     // ==================================================
 
     const { data: course, error } = await supabase
@@ -64,17 +108,11 @@ const createCourse = async (req, res) => {
           title,
           slug,
           description,
-
-          thumbnail_url: thumbnail_url || null,
-
+          thumbnail_url: null,
           price: price || 0,
-
           level: level || "beginner",
-
           category: category || null,
-
           published: false,
-
           created_by: req.user.id,
         },
       ])
@@ -86,6 +124,34 @@ const createCourse = async (req, res) => {
         success: false,
         message: error.message,
       });
+    }
+
+    // ==================================================
+    // UPLOAD THUMBNAIL (if file provided)
+    // ==================================================
+
+    if (req.file) {
+      try {
+        const thumbnailUrl = await uploadThumbnail(req.file, course.id);
+
+        const { data: updatedCourse, error: updateError } = await supabase
+          .from("courses")
+          .update({ thumbnail_url: thumbnailUrl })
+          .eq("id", course.id)
+          .select()
+          .single();
+
+        if (!updateError) {
+          return res.status(201).json({
+            success: true,
+            message: "Course created successfully",
+            data: updatedCourse,
+          });
+        }
+      } catch (uploadErr) {
+        console.error("[THUMBNAIL UPLOAD ERROR]", uploadErr.message);
+        // Course was created, but thumbnail failed — return course anyway
+      }
     }
 
     // ==================================================
@@ -185,7 +251,6 @@ const updateCourse = async (req, res) => {
     const {
       title,
       description,
-      thumbnail_url,
       price,
       level,
       category,
@@ -209,6 +274,20 @@ const updateCourse = async (req, res) => {
     }
 
     // ==================================================
+    // UPLOAD NEW THUMBNAIL (if file provided)
+    // ==================================================
+
+    let thumbnailUrl = existingCourse.thumbnail_url;
+
+    if (req.file) {
+      // Delete old thumbnail from storage
+      await deleteThumbnail(existingCourse.thumbnail_url);
+
+      // Upload new thumbnail
+      thumbnailUrl = await uploadThumbnail(req.file, courseId);
+    }
+
+    // ==================================================
     // UPDATE COURSE
     // ==================================================
 
@@ -220,8 +299,7 @@ const updateCourse = async (req, res) => {
         description:
           description || existingCourse.description,
 
-        thumbnail_url:
-          thumbnail_url || existingCourse.thumbnail_url,
+        thumbnail_url: thumbnailUrl,
 
         price:
           price !== undefined
@@ -273,7 +351,7 @@ const deleteCourse = async (req, res) => {
 
     const { data: existingCourse } = await supabase
       .from("courses")
-      .select("id")
+      .select("id, thumbnail_url")
       .eq("id", courseId)
       .single();
 
@@ -283,6 +361,12 @@ const deleteCourse = async (req, res) => {
         message: "Course not found",
       });
     }
+
+    // ==================================================
+    // DELETE THUMBNAIL FROM STORAGE
+    // ==================================================
+
+    await deleteThumbnail(existingCourse.thumbnail_url);
 
     // ==================================================
     // DELETE COURSE

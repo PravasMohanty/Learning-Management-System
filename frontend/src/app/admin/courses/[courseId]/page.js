@@ -2,7 +2,7 @@
 
 import { use, useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { courseAPI, moduleAPI, assignmentAPI, quizAPI } from "@/lib/api";
+import { courseAPI, moduleAPI, assignmentAPI, quizAPI, moduleVideoAPI } from "@/lib/api";
 import PageContainer from "@/components/layout/PageContainer";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
@@ -24,12 +24,19 @@ import {
   Upload,
   BookOpen,
   MessageSquare,
+  Video,
+  PlayCircle
 } from "lucide-react";
 
 const moduleSchema = z.object({
   title: z.string().min(2, "Title is required"),
   description: z.string().optional(),
   position: z.coerce.number().min(1).optional(),
+});
+
+const videoSchema = z.object({
+  title: z.string().min(2, "Title is required"),
+  video_url: z.string().url("Must be a valid URL"),
 });
 
 export default function CourseDetailPage({ params }) {
@@ -42,6 +49,12 @@ export default function CourseDetailPage({ params }) {
   const quizFileRef = useRef(null);
   const [quizData, setQuizData] = useState({ title: "", description: "", pass_percentage: "40", time_limit: "" });
   const [quizFile, setQuizFile] = useState(null);
+
+  const [videoModal, setVideoModal] = useState(null); // stores the moduleId we are adding a video to
+  const videoForm = useForm({
+    resolver: zodResolver(videoSchema),
+    defaultValues: { title: "", video_url: "" },
+  });
 
   const { data: courseData, isLoading: courseLoading } = useQuery({
     queryKey: ["course", courseId],
@@ -104,6 +117,27 @@ export default function CourseDetailPage({ params }) {
     onError: (err) => toast.error(err.message || "Failed to delete module"),
   });
 
+  const createVideoMutation = useMutation({
+    mutationFn: ({ moduleId, data }) => moduleVideoAPI.create(moduleId, data),
+    onSuccess: (res) => {
+      if (!res.success) { toast.error(res.message); return; }
+      queryClient.invalidateQueries({ queryKey: ["course-modules", courseId] });
+      toast.success("Video added");
+      setVideoModal(null);
+      videoForm.reset();
+    },
+    onError: (err) => toast.error(err.message || "Failed to add video"),
+  });
+
+  const deleteVideoMutation = useMutation({
+    mutationFn: (videoId) => moduleVideoAPI.delete(videoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["course-modules", courseId] });
+      toast.success("Video deleted");
+    },
+    onError: (err) => toast.error(err.message || "Failed to delete video"),
+  });
+
   const openCreateModule = () => {
     moduleForm.reset({ title: "", description: "", position: modules.length + 1 });
     setEditingModule(null);
@@ -139,6 +173,15 @@ export default function CourseDetailPage({ params }) {
     } catch (err) {
       toast.error(err.message || "Failed to create quiz");
     }
+  };
+
+  const openAddVideo = (moduleId) => {
+    videoForm.reset({ title: "", video_url: "" });
+    setVideoModal(moduleId);
+  };
+
+  const onVideoSubmit = (data) => {
+    createVideoMutation.mutate({ moduleId: videoModal, data });
   };
 
   const isLoading = courseLoading || modulesLoading;
@@ -383,6 +426,13 @@ export default function CourseDetailPage({ params }) {
                   <div className="data-table-actions">
                     <button
                       className="btn-icon"
+                      title="Add video"
+                      onClick={() => openAddVideo(mod.id)}
+                    >
+                      <Video size={16} />
+                    </button>
+                    <button
+                      className="btn-icon"
                       title="Upload quiz CSV"
                       onClick={() => setQuizModal(mod)}
                     >
@@ -405,6 +455,32 @@ export default function CourseDetailPage({ params }) {
                     </button>
                   </div>
                 </div>
+
+                {/* Sub-list of videos */}
+                {mod.module_videos && mod.module_videos.length > 0 && (
+                  <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Videos</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {mod.module_videos.map((vid) => (
+                        <div key={vid.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--color-bg-alt)", borderRadius: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+                            <PlayCircle size={14} className="text-muted" />
+                            <span>{vid.title}</span>
+                          </div>
+                          <button
+                            className="btn-icon btn-sm"
+                            title="Delete video"
+                            onClick={() => {
+                              if(confirm("Delete this video?")) deleteVideoMutation.mutate(vid.id);
+                            }}
+                          >
+                            <Trash2 size={14} style={{ color: "var(--color-error)" }} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -472,6 +548,40 @@ export default function CourseDetailPage({ params }) {
         }
       >
         <p>Are you sure you want to delete <strong>{deleteModuleModal?.title}</strong>? This cannot be undone.</p>
+      </Modal>
+
+      {/* Add Video Modal */}
+      <Modal
+        isOpen={!!videoModal}
+        onClose={() => { setVideoModal(null); videoForm.reset(); }}
+        title="Add Video to Module"
+        footer={
+          <>
+            <button className="btn btn-outline" onClick={() => { setVideoModal(null); videoForm.reset(); }}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={videoForm.handleSubmit(onVideoSubmit)}
+              disabled={createVideoMutation.isPending}
+            >
+              {createVideoMutation.isPending ? "Adding..." : "Add Video"}
+            </button>
+          </>
+        }
+      >
+        <Input
+          label="Video Title"
+          placeholder="e.g. Lesson 1: Introduction"
+          error={videoForm.formState.errors.title?.message}
+          {...videoForm.register("title")}
+        />
+        <Input
+          label="YouTube Embed URL"
+          placeholder="https://www.youtube.com/embed/..."
+          error={videoForm.formState.errors.video_url?.message}
+          {...videoForm.register("video_url")}
+        />
       </Modal>
 
       {/* Quiz Upload Modal */}

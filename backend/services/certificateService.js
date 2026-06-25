@@ -17,6 +17,7 @@ const { supabaseAdmin: supabase } =
  * @param {string}  data.studentName
  * @param {string}  data.courseName
  * @param {string}  data.issueDate
+ * @param {string}  data.verificationHash
  * @returns {Promise<string>} - Public URL of the uploaded PDF
  */
 async function generateCertificatePdf(data) {
@@ -26,7 +27,7 @@ async function generateCertificatePdf(data) {
   // ==========================================
 
   const verificationUrl =
-    `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify/${data.certificateId}`;
+    `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify/${data.verificationHash}`;
 
   const qrCode =
     await QRCode.toDataURL(verificationUrl);

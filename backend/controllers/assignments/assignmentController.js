@@ -52,7 +52,12 @@ const getAssignments = async (req, res) => {
             .eq("course_id", courseId)
             .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            if (error.code === 'PGRST205') {
+                return res.status(200).json({ success: true, data: [] });
+            }
+            throw error;
+        }
 
         return res.status(200).json({
             success: true,

@@ -178,17 +178,41 @@ export const courseAPI = {
   getById: (courseId) =>
     apiCall(`/courses/${courseId}`, { method: "GET" }),
 
-  create: (courseData) =>
-    apiCall("/courses", {
-      method: "POST",
-      body: JSON.stringify(courseData),
-    }),
+  create: (courseData, thumbnailFile) => {
+    const formData = new FormData();
+    formData.append("title", courseData.title);
+    formData.append("description", courseData.description);
+    if (courseData.price !== undefined) formData.append("price", courseData.price);
+    if (courseData.level) formData.append("level", courseData.level);
+    if (courseData.category) formData.append("category", courseData.category);
+    if (thumbnailFile) formData.append("thumbnail", thumbnailFile);
 
-  update: (courseId, courseData) =>
-    apiCall(`/courses/${courseId}`, {
+    return fetch(`${API_BASE_URL}/courses`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+      body: formData,
+    }).then((res) => res.json());
+  },
+
+  update: (courseId, courseData, thumbnailFile) => {
+    const formData = new FormData();
+    if (courseData.title) formData.append("title", courseData.title);
+    if (courseData.description) formData.append("description", courseData.description);
+    if (courseData.price !== undefined) formData.append("price", courseData.price);
+    if (courseData.level) formData.append("level", courseData.level);
+    if (courseData.category) formData.append("category", courseData.category);
+    if (thumbnailFile) formData.append("thumbnail", thumbnailFile);
+
+    return fetch(`${API_BASE_URL}/courses/${courseId}`, {
       method: "PUT",
-      body: JSON.stringify(courseData),
-    }),
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+      body: formData,
+    }).then((res) => res.json());
+  },
 
   delete: (courseId) =>
     apiCall(`/courses/${courseId}`, { method: "DELETE" }),
@@ -219,6 +243,27 @@ export const moduleAPI = {
 
   delete: (moduleId) =>
     apiCall(`/modules/${moduleId}`, { method: "DELETE" }),
+};
+
+// ============================================================
+// MODULE VIDEO APIs
+// ============================================================
+
+export const moduleVideoAPI = {
+  create: (moduleId, videoData) =>
+    apiCall(`/modules/${moduleId}/videos`, {
+      method: "POST",
+      body: JSON.stringify(videoData),
+    }),
+
+  update: (videoId, videoData) =>
+    apiCall(`/modules/videos/${videoId}`, {
+      method: "PUT",
+      body: JSON.stringify(videoData),
+    }),
+
+  delete: (videoId) =>
+    apiCall(`/modules/videos/${videoId}`, { method: "DELETE" }),
 };
 
 // ============================================================
@@ -371,6 +416,12 @@ export const progressAPI = {
       method: "PUT",
       body: JSON.stringify({ progress }),
     }),
+
+  markModuleCompleted: (courseId, moduleId, completed) =>
+    apiCall(`/progress/${courseId}/module/${moduleId}`, {
+      method: "POST",
+      body: JSON.stringify({ completed }),
+    }),
 };
 
 // ============================================================
@@ -392,6 +443,9 @@ export const certificateAPI = {
 
   generate: (courseId) =>
     apiCall(`/certificates/${courseId}/generate`, { method: "POST" }),
+
+  verifyHash: (hash) =>
+    apiCall(`/certificates/verify/${hash}`, { method: "GET" }),
 };
 
 // ============================================================

@@ -2,14 +2,14 @@
 
 import { use } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { courseAPI, moduleAPI, progressAPI, assignmentAPI } from "@/lib/api";
+import { courseAPI, moduleAPI, progressAPI, assignmentAPI, certificateAPI } from "@/lib/api";
 import PageContainer from "@/components/layout/PageContainer";
 import Badge from "@/components/ui/Badge";
 import { SkeletonLine } from "@/components/ui/Skeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { ArrowLeft, Layers, BookOpen, ClipboardList, PlayCircle, MessageSquare } from "lucide-react";
+import { ArrowLeft, Layers, BookOpen, ClipboardList, PlayCircle, MessageSquare, CheckCircle } from "lucide-react";
 
 export default function StudentCourseDetailPage({ params }) {
   const { courseId } = use(params);
@@ -42,6 +42,7 @@ export default function StudentCourseDetailPage({ params }) {
   const course = courseData?.data;
   const modules = modulesData?.data || [];
   const progress = progressData?.progress;
+  const moduleProgress = progressData?.moduleProgress || [];
   const assignments = assignmentsData?.data || [];
   const isEnrolled = !!progress;
 
@@ -55,6 +56,70 @@ export default function StudentCourseDetailPage({ params }) {
     },
     onError: (err) => toast.error(err.message || "Failed to enroll"),
   });
+
+  const toggleModuleMutation = useMutation({
+    mutationFn: ({ moduleId, completed }) => progressAPI.markModuleCompleted(courseId, moduleId, completed),
+    onSuccess: (res) => {
+      if (!res.success) { toast.error(res.message); return; }
+      queryClient.invalidateQueries({ queryKey: ["course-progress", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["my-progress"] });
+    },
+    onError: (err) => toast.error(err.message || "Failed to mark module"),
+  });
+
+  const handleGetCertificate = async () => {
+    if (!progress?.completed) {
+      toast.error("Please complete the course first to get your certificate.");
+      return;
+    }
+
+    // Open window immediately to bypass popup blockers for slow generation
+    const newWindow = window.open('about:blank', '_blank');
+    if (newWindow) {
+      newWindow.document.write('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;"><h2>Preparing your certificate...</h2></body></html>');
+    }
+
+    try {
+      const toastId = toast.loading("Fetching certificate...");
+      const res = await certificateAPI.getMyCertificates();
+      
+      let cert = null;
+      if (res.success && res.certificates) {
+        cert = res.certificates.find(c => c.course_id === courseId);
+      }
+      
+      if (!cert || !cert.pdf_url) {
+        toast.loading("Generating certificate... This may take a moment.", { id: toastId });
+        const genRes = await certificateAPI.generate(courseId);
+        
+        // Sometimes backend returns 400 if it already exists, but includes the certificate
+        if (genRes.success && genRes.certificate) {
+          cert = genRes.certificate;
+        } else if (genRes.certificate) {
+          cert = genRes.certificate;
+        } else {
+          throw new Error(genRes.message || "Failed to generate certificate");
+        }
+      }
+      
+      toast.dismiss(toastId);
+      
+      if (cert && cert.pdf_url) {
+        if (newWindow) {
+          newWindow.location.href = cert.pdf_url;
+        } else {
+          window.open(cert.pdf_url, '_blank');
+        }
+      } else {
+        if (newWindow) newWindow.close();
+        toast.error("Certificate URL not found");
+      }
+    } catch (err) {
+      if (newWindow) newWindow.close();
+      toast.dismiss();
+      toast.error(err.message || "Failed to fetch certificate");
+    }
+  };
 
   const isLoading = courseLoading || modulesLoading;
 
@@ -138,35 +203,52 @@ export default function StudentCourseDetailPage({ params }) {
             />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {modules.map((mod) => (
-                <div key={mod.id} className="card">
-                  <div className="card-body" style={{ padding: "14px 20px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 6,
-                          backgroundColor: "var(--color-primary)",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {mod.position}
-                      </span>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{mod.title}</div>
-                        {mod.description && <div className="text-sm text-muted">{mod.description}</div>}
+              {modules.map((mod) => {
+                const isModCompleted = moduleProgress.some(mp => mp.module_id === mod.id && mp.completed);
+                return (
+                  <div key={mod.id} className="card">
+                    <div className="card-body" style={{ padding: "14px 20px" }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+                        {isEnrolled && (
+                          <div style={{ paddingTop: 4 }}>
+                            <input
+                              type="checkbox"
+                              checked={isModCompleted}
+                              onChange={(e) => toggleModuleMutation.mutate({ moduleId: mod.id, completed: e.target.checked })}
+                              disabled={toggleModuleMutation.isPending}
+                              style={{ width: 20, height: 20, cursor: "pointer", accentColor: "var(--color-primary)" }}
+                            />
+                          </div>
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>{mod.position}. {mod.title}</div>
+                          {mod.description && <div className="text-sm text-muted" style={{ marginBottom: 12 }}>{mod.description}</div>}
+
+                          {isEnrolled && mod.module_videos && mod.module_videos.length > 0 && (
+                            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+                              {mod.module_videos.map(vid => (
+                                <div key={vid.id}>
+                                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8, color: "var(--color-text)" }}>
+                                    <PlayCircle size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />
+                                    {vid.title}
+                                  </div>
+                                  <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: 8, background: "#000" }}>
+                                    <iframe 
+                                      src={vid.video_url} 
+                                      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
+                                      allowFullScreen
+                                    ></iframe>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -207,26 +289,42 @@ export default function StudentCourseDetailPage({ params }) {
           )}
 
           {/* Discussions */}
-          <div style={{ marginTop: 24 }}>
-            <div style={{ marginBottom: 12 }}>
-              <h3><MessageSquare size={18} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />Course Discussions</h3>
-            </div>
-            <Link
-              href={`/student/courses/${courseId}/discussions`}
-              className="card"
-              style={{ textDecoration: "none", display: "block" }}
-            >
-              <div className="card-body" style={{ padding: "14px 20px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>View & Ask Questions</div>
-                    <div className="text-sm text-muted">Ask doubts, share knowledge, and find answers from other students and teachers</div>
-                  </div>
-                  <ArrowLeft size={16} style={{ transform: "rotate(180deg)", color: "var(--color-muted)" }} />
-                </div>
+          {isEnrolled && (
+            <div style={{ marginTop: 24 }}>
+              <div style={{ marginBottom: 12 }}>
+                <h3><MessageSquare size={18} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />Course Discussions</h3>
               </div>
-            </Link>
-          </div>
+              <Link
+                href={`/student/courses/${courseId}/discussions`}
+                className="card"
+                style={{ textDecoration: "none", display: "block" }}
+              >
+                <div className="card-body" style={{ padding: "14px 20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>View & Ask Questions</div>
+                      <div className="text-sm text-muted">Ask doubts, share knowledge, and find answers from other students and teachers</div>
+                    </div>
+                    <ArrowLeft size={16} style={{ transform: "rotate(180deg)", color: "var(--color-muted)" }} />
+                  </div>
+                </div>
+              </Link>
+            </div>
+          )}
+
+          {/* Get Certificate Button */}
+          {isEnrolled && (
+            <div style={{ marginTop: 24, marginBottom: 40 }}>
+              <button 
+                className={`btn ${progress?.completed ? 'btn-primary' : 'btn-outline'}`}
+                onClick={handleGetCertificate}
+                style={{ width: "100%", padding: "14px", fontSize: "16px", display: "flex", justifyContent: "center", alignItems: "center", gap: 10 }}
+              >
+                <CheckCircle size={20} />
+                Get Certificate
+              </button>
+            </div>
+          )}
         </>
       )}
     </PageContainer>

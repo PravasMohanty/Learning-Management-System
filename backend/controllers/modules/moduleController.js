@@ -141,7 +141,12 @@ const getCourseModules = async (req, res) => {
 
     const { data: modules, error } = await supabase
       .from("course_modules")
-      .select("*")
+      .select(`
+        *,
+        module_videos (
+          *
+        )
+      `)
       .eq("course_id", courseId)
       .order("lesson_order", { ascending: true });
 

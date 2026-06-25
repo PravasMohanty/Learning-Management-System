@@ -74,7 +74,7 @@ function RegistrationRequestsTab() {
   const queryClient = useQueryClient();
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("pending");
 
   // Fetch all requests
   const { data, isLoading } = useQuery({
@@ -180,7 +180,7 @@ function RegistrationRequestsTab() {
         if (row.status !== "pending") {
           return (
             <span className="text-sm text-muted" style={{ fontStyle: "italic" }}>
-              {row.status === "approved" ? "Approved" : "Rejected"}
+              Processed
             </span>
           );
         }

@@ -33,7 +33,7 @@ const createDiscussion = async (req, res) => {
         `
         *,
         profiles:author_id (
-          id, name, role, avatar_url
+          id, name, role
         )
       `
       )
@@ -71,7 +71,7 @@ const getCourseDiscussions = async (req, res) => {
         `
         *,
         profiles:author_id (
-          id, name, role, avatar_url
+          id, name, role
         )
       `
       )
@@ -123,7 +123,7 @@ const getDiscussionById = async (req, res) => {
         `
         *,
         profiles:author_id (
-          id, name, role, avatar_url
+          id, name, role
         ),
         courses:course_id (
           id, title
@@ -150,7 +150,7 @@ const getDiscussionById = async (req, res) => {
         `
         *,
         profiles:author_id (
-          id, name, role, avatar_url
+          id, name, role
         )
       `
       )
@@ -334,7 +334,7 @@ const addReply = async (req, res) => {
         `
         *,
         profiles:author_id (
-          id, name, role, avatar_url
+          id, name, role
         )
       `
       )

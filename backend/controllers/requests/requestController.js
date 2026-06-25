@@ -99,60 +99,100 @@ const approveStudentRequest = async (req, res) => {
       .from("profiles")
       .select("id")
       .eq("email", request.email)
-      .single();
+      .maybeSingle();
 
-    if (existingProfile) {
-      return res.status(400).json({
-        success: false,
-        message: "User already exists",
-      });
-    }
+    let authUserId = existingProfile?.id;
 
-    // ==================================================
-    // CREATE AUTH USER
-    // ==================================================
+    // Only create auth user + profile if one doesn't exist yet
+    // (handles retries after a partially-failed approval)
+    if (!authUserId) {
+      // ================================================
+      // CREATE AUTH USER
+      // ================================================
 
-    const { data: authData, error: authError } =
-      await supabase.auth.admin.createUser({
-        email: request.email,
+      let authUser;
 
-        // TEMPORARY
-        password: "temporaryPassword123",
+      if (supabaseAdmin.auth.admin) {
+        const { data: authData, error: authError } =
+          await supabaseAdmin.auth.admin.createUser({
+            email: request.email,
+            password: "temporaryPassword123",
+            email_confirm: true,
+          });
 
-        email_confirm: true,
-      });
+        if (authError) {
+          if (authError.message.includes("already been registered")) {
+            const { data: { users } } =
+              await supabaseAdmin.auth.admin.listUsers();
+            authUser = users.find(
+              (u) => u.email === request.email
+            );
+            if (!authUser) {
+              return res.status(500).json({
+                success: false,
+                message: "User exists but could not be found",
+              });
+            }
+          } else {
+            return res.status(500).json({
+              success: false,
+              message: authError.message,
+            });
+          }
+        } else {
+          authUser = authData.user;
+        }
+      } else {
+        const { data: authData, error: authError } =
+          await supabaseAdmin.auth.signUp({
+            email: request.email,
+            password: "temporaryPassword123",
+          });
 
-    if (authError) {
-      return res.status(500).json({
-        success: false,
-        message: authError.message,
-      });
-    }
+        if (authError) {
+          return res.status(500).json({
+            success: false,
+            message: authError.message,
+          });
+        }
 
-    const authUser = authData.user;
+        if (!authData.user) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "This email is already registered. " +
+              "Please use a different email or contact support.",
+          });
+        }
 
-    // ==================================================
-    // CREATE PROFILE
-    // ==================================================
+        authUser = authData.user;
+      }
 
-    const { error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .insert([
-        {
-          id: authUser.id,
-          user_code: generateUserCode(),
-          name: request.name,
-          email: request.email,
-          role: "student",
-          status: "active",
-        },
-      ]);
+      authUserId = authUser.id;
 
-    if (profileError) {
-      return res.status(500).json({
-        success: false,
-        message: "Profile creation failed",
-      });
+      // ================================================
+      // CREATE PROFILE
+      // ================================================
+
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .insert([
+          {
+            id: authUserId,
+            user_code: generateUserCode(),
+            name: request.name,
+            email: request.email,
+            role: "student",
+            // status: "active", // Temporarily removed to fix 500 error: column doesn't exist in Supabase DB yet
+          },
+        ]);
+
+      if (profileError) {
+        return res.status(500).json({
+          success: false,
+          message: "Profile creation failed",
+        });
+      }
     }
 
     // ==================================================
@@ -162,7 +202,7 @@ const approveStudentRequest = async (req, res) => {
     const { error: updateError } = await supabaseAdmin
       .from("registration_requests")
       .update({
-        status: "accepted",
+        status: "approved",
       })
       .eq("id", requestId);
 
@@ -174,18 +214,20 @@ const approveStudentRequest = async (req, res) => {
     }
 
     // ==================================================
-    // SEND APPROVAL EMAIL
+    // SEND APPROVAL EMAIL (non-blocking)
     // ==================================================
 
-    const mail = approvalEmailTemplate(request.name);
+    try {
+      const mail = approvalEmailTemplate(request.name);
 
-    await sendEmail({
-      to: request.email,
-
-      subject: mail.subject,
-
-      html: mail.html,
-    });
+      await sendEmail({
+        to: request.email,
+        subject: mail.subject,
+        html: mail.html,
+      });
+    } catch (emailError) {
+      console.error("[APPROVAL EMAIL ERROR]", emailError);
+    }
 
     // ==================================================
     // RESPONSE
@@ -196,28 +238,12 @@ const approveStudentRequest = async (req, res) => {
       message: "Student approved successfully",
 
       data: {
-        id: authUser.id,
-        email: authUser.email,
+        id: authUserId,
+        email: request.email,
       },
     });
   } catch (error) {
     console.error("[APPROVE STUDENT ERROR]", error);
-
-    // ==================================================
-    // FAILURE EMAIL
-    // ==================================================
-
-    if (request?.email) {
-      const mail = approvalFailedTemplate(request.name);
-
-      await sendEmail({
-        to: request.email,
-
-        subject: mail.subject,
-
-        html: mail.html,
-      });
-    }
 
     return res.status(500).json({
       success: false,
@@ -273,11 +299,7 @@ const rejectStudentRequest = async (req, res) => {
       .update({
         status: "rejected",
 
-        rejection_reason: rejectionReason || null,
-
-        approved_by: req.user.id,
-
-        approved_at: new Date().toISOString(),
+        // rejection_reason: rejectionReason || null, // Temporarily removed to fix 500 error: column doesn't exist in Supabase DB yet
       })
       .eq("id", requestId);
 
@@ -289,21 +311,23 @@ const rejectStudentRequest = async (req, res) => {
     }
 
     // ==================================================
-    // SEND REJECTION EMAIL
+    // SEND REJECTION EMAIL (non-blocking)
     // ==================================================
 
-    const mail = rejectionEmailTemplate(
-      request.name,
-      rejectionReason
-    );
+    try {
+      const mail = rejectionEmailTemplate(
+        request.name,
+        rejectionReason
+      );
 
-    await sendEmail({
-      to: request.email,
-
-      subject: mail.subject,
-
-      html: mail.html,
-    });
+      await sendEmail({
+        to: request.email,
+        subject: mail.subject,
+        html: mail.html,
+      });
+    } catch (emailError) {
+      console.error("[REJECTION EMAIL ERROR]", emailError);
+    }
 
     // ==================================================
     // RESPONSE

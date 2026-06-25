@@ -162,42 +162,44 @@ export default function StudentProfilePage() {
       </div>
 
       {/* Change Password */}
-      <div className="card">
-        <div className="card-header">
-          <h4 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Lock size={16} /> Change Password
-          </h4>
-        </div>
-        <div className="card-body">
-          <form
-            onSubmit={handleSubmit((d) => passwordMutation.mutate(d))}
-            noValidate
-            style={{ maxWidth: 400 }}
-          >
-            <Input
-              label="New Password"
-              type="password"
-              placeholder="Enter new password"
-              error={errors.newPassword?.message}
-              {...register("newPassword")}
-            />
-            <Input
-              label="Confirm Password"
-              type="password"
-              placeholder="Confirm new password"
-              error={errors.confirmPassword?.message}
-              {...register("confirmPassword")}
-            />
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={passwordMutation.isPending}
+      {profile?.role === 'admin' && (
+        <div className="card">
+          <div className="card-header">
+            <h4 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Lock size={16} /> Change Password
+            </h4>
+          </div>
+          <div className="card-body">
+            <form
+              onSubmit={handleSubmit((d) => passwordMutation.mutate(d))}
+              noValidate
+              style={{ maxWidth: 400 }}
             >
-              {passwordMutation.isPending ? "Changing..." : "Change Password"}
-            </button>
-          </form>
+              <Input
+                label="New Password"
+                type="password"
+                placeholder="Enter new password"
+                error={errors.newPassword?.message}
+                {...register("newPassword")}
+              />
+              <Input
+                label="Confirm Password"
+                type="password"
+                placeholder="Confirm new password"
+                error={errors.confirmPassword?.message}
+                {...register("confirmPassword")}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={passwordMutation.isPending}
+              >
+                {passwordMutation.isPending ? "Changing..." : "Change Password"}
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
     </PageContainer>
   );
 }

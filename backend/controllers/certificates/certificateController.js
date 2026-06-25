@@ -1,5 +1,6 @@
 const { supabaseAdmin: supabase } = require("../../config/supabase");
 const certificateService = require("../../services/certificateService");
+const crypto = require("crypto");
 
 /**
  * Generate Certificate
@@ -91,6 +92,8 @@ const generateCertificate = async (req, res) => {
 
     const issueDate = new Date();
 
+    const verificationHash = crypto.randomBytes(16).toString("hex");
+
     // ==========================================
     // GENERATE PDF
     // ==========================================
@@ -100,8 +103,8 @@ const generateCertificate = async (req, res) => {
         certificateId,
         studentName: req.user.name,
         courseName: course.title,
-        issueDate:
-          issueDate.toLocaleDateString(),
+        issueDate: issueDate.toLocaleDateString(),
+        verificationHash,
       });
 
     // ==========================================
@@ -120,6 +123,7 @@ const generateCertificate = async (req, res) => {
           course_id: courseId,
           issue_date: new Date(),
           pdf_url: pdfUrl,
+          verification_hash: verificationHash,
           status: "active",
         },
       ])
@@ -134,12 +138,13 @@ const generateCertificate = async (req, res) => {
     // UPDATE PROGRESS
     // ==========================================
 
-    await supabase
-      .from("course_progress")
-      .update({
-        certificate_issued: true,
-      })
-      .eq("id", progress.id);
+    // Temporarily removed since certificate_issued column is missing in Supabase
+    // await supabase
+    //   .from("course_progress")
+    //   .update({
+    //     certificate_issued: true,
+    //   })
+    //   .eq("id", progress.id);
 
     return res.status(201).json({
       success: true,
@@ -347,10 +352,49 @@ const getAllCertificates = async (req, res) => {
   }
 };
 
+/**
+ * Verify Certificate by Hash (Public)
+ */
+const verifyCertificateHash = async (req, res) => {
+  try {
+    const { hash } = req.params;
+
+    const { data, error } = await supabase
+      .from("certificates")
+      .select(`
+        *,
+        courses(title),
+        profiles(name)
+      `)
+      .eq("verification_hash", hash)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid or unrecognized certificate",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      certificate: data,
+    });
+
+  } catch (error) {
+    console.error("[VERIFY CERTIFICATE ERROR]", error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while verifying the certificate",
+    });
+  }
+};
+
 module.exports = {
   generateCertificate,
   getMyCertificates,
   getCertificateById,
   downloadCertificate,
   getAllCertificates,
+  verifyCertificateHash,
 };
