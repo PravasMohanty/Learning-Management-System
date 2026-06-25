@@ -1,0 +1,26 @@
+const express = require("express");
+const requestRouter = express.Router();
+
+const {
+  approveStudentRequest,
+  rejectStudentRequest,
+  viewAllRequests
+} = require("../controllers/requests/requestController");
+
+const { authMiddleware } = require("../middlewares/authMiddleware");
+const { adminMiddleware } = require("../middlewares/adminMiddleware");
+
+// ======================================================
+// REGISTRATION REQUEST ROUTES
+// ======================================================
+
+// Approve student registration request (admin only)
+requestRouter.put("/:id/approve", authMiddleware, adminMiddleware, approveStudentRequest);
+
+// Reject student registration request (admin only)
+requestRouter.put("/:id/reject", authMiddleware, adminMiddleware, rejectStudentRequest);
+
+// View all registration requests (admin only)
+requestRouter.get("/view-all", authMiddleware, adminMiddleware, viewAllRequests);
+
+module.exports = requestRouter;
