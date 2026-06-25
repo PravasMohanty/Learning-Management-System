@@ -298,6 +298,9 @@ export const assignmentAPI = {
       body: JSON.stringify(submissionData),
     }),
 
+  getMySubmission: (assignmentId) =>
+    apiCall(`/assignments/${assignmentId}/my-submission`, { method: "GET" }),
+
   getSubmissions: (assignmentId) =>
     apiCall(`/assignments/${assignmentId}/submissions`, { method: "GET" }),
 
@@ -384,7 +387,8 @@ export const quizAPI = {
     formData.append("file", csvFile);
     formData.append("title", quizData.title);
     if (quizData.description) formData.append("description", quizData.description);
-    if (quizData.pass_percentage) formData.append("pass_percentage", quizData.pass_percentage);
+    const passMarks = quizData.passing_marks || quizData.pass_percentage || 40;
+    formData.append("passing_marks", passMarks);
     if (quizData.time_limit) formData.append("time_limit", quizData.time_limit);
 
     return fetch(`${API_BASE_URL}/quiz/${moduleId}/create-from-csv`, {
@@ -395,6 +399,36 @@ export const quizAPI = {
       body: formData,
     }).then((res) => res.json());
   },
+
+  getByModuleId: (moduleId) =>
+    apiCall(`/quiz/module/${moduleId}`, { method: "GET" }),
+
+  getById: (quizId) =>
+    apiCall(`/quiz/${quizId}`, { method: "GET" }),
+
+  getByIdStudent: (quizId) =>
+    apiCall(`/quiz/${quizId}/student`, { method: "GET" }),
+
+  delete: (quizId) =>
+    apiCall(`/quiz/${quizId}`, { method: "DELETE" }),
+
+  startAttempt: (quizId) =>
+    apiCall(`/quiz/${quizId}/start`, { method: "POST" }),
+
+  submitAttempt: (attemptId, answers) =>
+    apiCall(`/quiz/attempt/${attemptId}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ answers }),
+    }),
+
+  getAttempt: (attemptId) =>
+    apiCall(`/quiz/attempt/${attemptId}`, { method: "GET" }),
+
+  getMyAttempts: (quizId) =>
+    apiCall(`/quiz/${quizId}/my-attempts`, { method: "GET" }),
+
+  getAttempts: (quizId) =>
+    apiCall(`/quiz/${quizId}/attempts`, { method: "GET" }),
 };
 
 // ============================================================

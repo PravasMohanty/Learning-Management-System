@@ -50,6 +50,10 @@ export default function CourseDetailPage({ params }) {
   const [quizData, setQuizData] = useState({ title: "", description: "", pass_percentage: "40", time_limit: "" });
   const [quizFile, setQuizFile] = useState(null);
 
+  const [viewAttemptsModal, setViewAttemptsModal] = useState(null);
+  const [quizAttempts, setQuizAttempts] = useState([]);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
+
   const [videoModal, setVideoModal] = useState(null); // stores the moduleId we are adding a video to
   const videoForm = useForm({
     resolver: zodResolver(videoSchema),
@@ -170,8 +174,31 @@ export default function CourseDetailPage({ params }) {
       setQuizModal(null);
       setQuizFile(null);
       setQuizData({ title: "", description: "", pass_percentage: "40", time_limit: "" });
+      queryClient.invalidateQueries({ queryKey: ["course-modules", courseId] });
     } catch (err) {
       toast.error(err.message || "Failed to create quiz");
+    }
+  };
+
+  const deleteQuizMutation = useMutation({
+    mutationFn: (quizId) => quizAPI.delete(quizId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["course-modules", courseId] });
+      toast.success("Quiz deleted successfully");
+    },
+    onError: (err) => toast.error(err.message || "Failed to delete quiz"),
+  });
+
+  const openViewAttempts = async (quiz) => {
+    setViewAttemptsModal(quiz);
+    setLoadingAttempts(true);
+    try {
+      const res = await quizAPI.getAttempts(quiz.id);
+      setQuizAttempts(res.data || []);
+    } catch (err) {
+      toast.error("Failed to load quiz attempts");
+    } finally {
+      setLoadingAttempts(false);
     }
   };
 
@@ -481,6 +508,45 @@ export default function CourseDetailPage({ params }) {
                     </div>
                   </div>
                 )}
+
+                {/* Sub-list of quizzes */}
+                {mod.quizzes && mod.quizzes.length > 0 && (
+                  <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Quizzes</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {mod.quizzes.map((quiz) => (
+                        <div key={quiz.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--color-bg-alt)", borderRadius: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+                            <ClipboardList size={14} className="text-muted" />
+                            <div>
+                              <span style={{ fontWeight: 500 }}>{quiz.title}</span>
+                              <span style={{ fontSize: 12, color: "var(--color-muted)", marginLeft: 8 }}>
+                                ({(quiz.passing_marks ?? 40) / 100 * (quiz.total_marks ?? 10)}/{(quiz.total_marks ?? 10)} passing marks ({(quiz.passing_marks ?? 40)}%)) {quiz.time_limit ? `• ${quiz.time_limit} min` : ""}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <button
+                              className="btn btn-sm btn-outline"
+                              onClick={() => openViewAttempts(quiz)}
+                            >
+                              Attempts
+                            </button>
+                            <button
+                              className="btn-icon btn-sm"
+                              title="Delete quiz"
+                              onClick={() => {
+                                if (confirm("Delete this quiz?")) deleteQuizMutation.mutate(quiz.id);
+                              }}
+                            >
+                              <Trash2 size={14} style={{ color: "var(--color-error)" }} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -646,6 +712,56 @@ export default function CourseDetailPage({ params }) {
           />
           <div className="form-hint">Upload a CSV with columns: question, options (JSON array), correct_answer, points</div>
         </div>
+      </Modal>
+
+      {/* View Quiz Attempts Modal */}
+      <Modal
+        isOpen={!!viewAttemptsModal}
+        onClose={() => { setViewAttemptsModal(null); setQuizAttempts([]); }}
+        title={`Quiz Attempts — ${viewAttemptsModal?.title || ""}`}
+        maxWidth={640}
+      >
+        {loadingAttempts ? (
+          <div style={{ padding: 24, textAlign: "center" }} className="text-muted">Loading attempts...</div>
+        ) : quizAttempts.length === 0 ? (
+          <div style={{ padding: 24, textAlign: "center" }} className="text-muted">No attempts yet.</div>
+        ) : (
+          <div className="data-table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Date</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quizAttempts.map((att) => {
+                  const percent = att.score && viewAttemptsModal?.total_marks ? Math.round((att.score / viewAttemptsModal.total_marks) * 100) : 0;
+                  const passed = att.score >= ((viewAttemptsModal?.passing_marks ?? 40) / 100) * (viewAttemptsModal?.total_marks ?? 10);
+                  return (
+                    <tr key={att.id}>
+                      <td>
+                        <strong>{att.student?.name || "Student"}</strong>
+                        <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{att.student?.email}</div>
+                      </td>
+                      <td>{att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : (att.started_at ? "In Progress" : "—")}</td>
+                      <td>
+                        <strong>{att.score}</strong> / {viewAttemptsModal?.total_marks || 0} ({percent}%)
+                      </td>
+                      <td>
+                        <Badge variant={passed ? "published" : "draft"}>
+                          {passed ? "Passed" : "Failed"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
     </PageContainer>
   );

@@ -94,46 +94,69 @@ const updateProgress = async (req, res) => {
     // Auto certificate generation
     if (completed) {
       try {
-        // Fetch student name
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("name")
-          .eq("id", studentId)
-          .single();
+        // Check assignments graded
+        const { data: assignments } = await supabase
+          .from("assignments")
+          .select("id")
+          .eq("course_id", courseId);
 
-        // Fetch course title
-        const { data: course } = await supabase
-          .from("courses")
-          .select("title")
-          .eq("id", courseId)
-          .single();
+        let canGenerate = true;
+        if (assignments && assignments.length > 0) {
+          const assignmentIds = assignments.map(a => a.id);
+          const { data: submissions } = await supabase
+            .from("assignment_submissions")
+            .select("assignment_id, status")
+            .eq("student_id", studentId)
+            .in("assignment_id", assignmentIds);
 
-        if (profile && course) {
-          const certificateId =
-            `CERT-${Date.now()}`;
-          const verificationHash = crypto.randomBytes(16).toString("hex");
+          const allGraded = assignmentIds.every(aId => {
+            const sub = (submissions || []).find(s => s.assignment_id === aId);
+            return sub && sub.status === "graded";
+          });
+          if (!allGraded) {
+            canGenerate = false;
+          }
+        }
 
-          const pdfUrl =
-            await certificateService.generateCertificatePdf({
+        if (canGenerate) {
+          // Fetch student name
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", studentId)
+            .single();
+
+          // Fetch course title
+          const { data: course } = await supabase
+            .from("courses")
+            .select("title")
+            .eq("id", courseId)
+            .single();
+
+          if (profile && course) {
+            const certificateId = `CERT-${Date.now()}`;
+            const verificationHash = crypto.randomBytes(16).toString("hex");
+
+            const pdfUrl = await certificateService.generateCertificatePdf({
               certificateId,
               studentName: profile.name,
               courseName: course.title,
-              issueDate:
-                new Date().toLocaleDateString(),
+              issueDate: new Date().toLocaleDateString(),
               verificationHash,
             });
 
-          await supabase
-            .from("certificates")
-            .insert([{
-              certificate_id: certificateId,
-              student_id: studentId,
-              course_id: courseId,
-              issue_date: new Date(),
-              pdf_url: pdfUrl,
-              verification_hash: verificationHash,
-              status: "active",
-            }]);
+            await supabase
+              .from("certificates")
+              .insert([{
+                certificate_id: certificateId,
+                student_id: studentId,
+                course_id: courseId,
+                issue_date: new Date(),
+                pdf_url: pdfUrl,
+                verification_hash: verificationHash,
+                status: "active",
+              }]);
+          }
         }
       } catch (certError) {
         console.error(
@@ -180,6 +203,7 @@ const getCourseProgress = async (req, res) => {
 
     // Fetch module_progress for this student and course
     let moduleProgress = [];
+    let passedQuizzes = [];
     if (progressData) {
       // First get all modules for course
       const { data: courseModules } = await supabase
@@ -197,13 +221,60 @@ const getCourseProgress = async (req, res) => {
           .in("module_id", moduleIds);
         
         moduleProgress = mpData || [];
+
+        // Fetch passed quizzes
+        const { data: quizzes } = await supabase
+          .from("quizzes")
+          .select("id, total_marks, passing_marks")
+          .in("module_id", moduleIds);
+
+        const quizIds = quizzes ? quizzes.map(q => q.id) : [];
+
+        if (quizIds.length > 0) {
+          const { data: attempts } = await supabase
+            .from("quiz_attempts")
+            .select("quiz_id, score")
+            .eq("student_id", studentId)
+            .eq("completed", true)
+            .in("quiz_id", quizIds);
+
+          passedQuizzes = (quizzes || []).filter(quiz => {
+            const quizAttempts = (attempts || []).filter(a => a.quiz_id === quiz.id);
+            const passingMarks = quiz.passing_marks ?? 40;
+            const totalMarks = quiz.total_marks ?? 10;
+            const threshold = (passingMarks / 100) * totalMarks;
+            return quizAttempts.some(a => a.score >= threshold);
+          }).map(quiz => quiz.id);
+        }
       }
+    }
+
+    let allAssignmentsGraded = true;
+    const { data: assignments } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("course_id", courseId);
+
+    if (assignments && assignments.length > 0) {
+      const assignmentIds = assignments.map(a => a.id);
+      const { data: submissions } = await supabase
+        .from("assignment_submissions")
+        .select("assignment_id, status")
+        .eq("student_id", studentId)
+        .in("assignment_id", assignmentIds);
+
+      allAssignmentsGraded = assignmentIds.every(aId => {
+        const sub = (submissions || []).find(s => s.assignment_id === aId);
+        return sub && sub.status === "graded";
+      });
     }
 
     return res.status(200).json({
       success: true,
       progress: progressData,
-      moduleProgress
+      moduleProgress,
+      passedQuizzes,
+      allAssignmentsGraded
     });
 
   } catch (error) {
@@ -258,6 +329,41 @@ const toggleModuleProgress = async (req, res) => {
     const studentId = req.user.id;
     const { courseId, moduleId } = req.params;
     const { completed } = req.body; // true or false
+
+    if (completed) {
+      // Find quizzes for this module
+      const { data: quizzes, error: quizzesError } = await supabase
+        .from("quizzes")
+        .select("id, title, total_marks, passing_marks")
+        .eq("module_id", moduleId);
+
+      if (quizzesError) throw quizzesError;
+
+      if (quizzes && quizzes.length > 0) {
+        for (const quiz of quizzes) {
+          const { data: attempts, error: attemptsError } = await supabase
+            .from("quiz_attempts")
+            .select("score")
+            .eq("quiz_id", quiz.id)
+            .eq("student_id", studentId)
+            .eq("completed", true);
+
+          if (attemptsError) throw attemptsError;
+
+          const passingMarks = quiz.passing_marks ?? 40;
+          const totalMarks = quiz.total_marks ?? 10;
+          const threshold = (passingMarks / 100) * totalMarks;
+          const hasPassed = (attempts || []).some(a => a.score >= threshold);
+
+          if (!hasPassed) {
+            return res.status(400).json({
+              success: false,
+              message: `You must pass the quiz "${quiz.title}" (minimum ${passingMarks}%) before completing this module.`
+            });
+          }
+        }
+      }
+    }
 
     // ACTUALLY, let's just do manual checking to be safe against constraint errors
     const { data: existingProgress } = await supabase
@@ -323,30 +429,55 @@ const toggleModuleProgress = async (req, res) => {
     // Auto certificate logic if completed
     if (courseCompleted) {
       try {
-        const { data: profile } = await supabase.from("profiles").select("name").eq("id", studentId).single();
-        const { data: course } = await supabase.from("courses").select("title").eq("id", courseId).single();
+        const { data: assignments } = await supabase
+          .from("assignments")
+          .select("id")
+          .eq("course_id", courseId);
 
-        if (profile && course) {
-          const certificateId = `CERT-${Date.now()}`;
-          const verificationHash = crypto.randomBytes(16).toString("hex");
+        let canGenerate = true;
+        if (assignments && assignments.length > 0) {
+          const assignmentIds = assignments.map(a => a.id);
+          const { data: submissions } = await supabase
+            .from("assignment_submissions")
+            .select("assignment_id, status")
+            .eq("student_id", studentId)
+            .in("assignment_id", assignmentIds);
 
-          const pdfUrl = await certificateService.generateCertificatePdf({
-            certificateId,
-            studentName: profile.name,
-            courseName: course.title,
-            issueDate: new Date().toLocaleDateString(),
-            verificationHash,
+          const allGraded = assignmentIds.every(aId => {
+            const sub = (submissions || []).find(s => s.assignment_id === aId);
+            return sub && sub.status === "graded";
           });
+          if (!allGraded) {
+            canGenerate = false;
+          }
+        }
 
-          await supabase.from("certificates").insert([{
-            certificate_id: certificateId,
-            student_id: studentId,
-            course_id: courseId,
-            issue_date: new Date(),
-            pdf_url: pdfUrl,
-            verification_hash: verificationHash,
-            status: "active",
-          }]);
+        if (canGenerate) {
+          const { data: profile } = await supabase.from("profiles").select("name").eq("id", studentId).single();
+          const { data: course } = await supabase.from("courses").select("title").eq("id", courseId).single();
+
+          if (profile && course) {
+            const certificateId = `CERT-${Date.now()}`;
+            const verificationHash = crypto.randomBytes(16).toString("hex");
+
+            const pdfUrl = await certificateService.generateCertificatePdf({
+              certificateId,
+              studentName: profile.name,
+              courseName: course.title,
+              issueDate: new Date().toLocaleDateString(),
+              verificationHash,
+            });
+
+            await supabase.from("certificates").insert([{
+              certificate_id: certificateId,
+              student_id: studentId,
+              course_id: courseId,
+              issue_date: new Date(),
+              pdf_url: pdfUrl,
+              verification_hash: verificationHash,
+              status: "active",
+            }]);
+          }
         }
       } catch (certError) {
         console.error("[AUTO CERTIFICATE ERROR]", certError);

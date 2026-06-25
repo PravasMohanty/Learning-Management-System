@@ -8,6 +8,7 @@ const {
   getAssignment,
   getAssignments,
   submitAssignment,
+  getMySubmission,
   getAssignmentSubmissions,
   gradeAssignmentSubmission,
 } = require("../controllers/assignments/assignmentController");
@@ -24,6 +25,9 @@ assignmentRouter.post("/", authMiddleware, createAssignment);
 
 // Get all assignments for a course
 assignmentRouter.get("/course/:courseId", getAssignments);
+
+// Get student's own submission for an assignment
+assignmentRouter.get("/:assignmentId/my-submission", authMiddleware, getMySubmission);
 
 // Get single assignment
 assignmentRouter.get("/:assignmentId", getAssignment);

@@ -43,6 +43,7 @@ export default function StudentCourseDetailPage({ params }) {
   const modules = modulesData?.data || [];
   const progress = progressData?.progress;
   const moduleProgress = progressData?.moduleProgress || [];
+  const passedQuizzes = progressData?.passedQuizzes || [];
   const assignments = assignmentsData?.data || [];
   const isEnrolled = !!progress;
 
@@ -70,6 +71,11 @@ export default function StudentCourseDetailPage({ params }) {
   const handleGetCertificate = async () => {
     if (!progress?.completed) {
       toast.error("Please complete the course first to get your certificate.");
+      return;
+    }
+
+    if (progressData?.allAssignmentsGraded === false) {
+      toast.error("Cannot generate certificate: You have ungraded or unsubmitted assignments.");
       return;
     }
 
@@ -205,6 +211,11 @@ export default function StudentCourseDetailPage({ params }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {modules.map((mod) => {
                 const isModCompleted = moduleProgress.some(mp => mp.module_id === mod.id && mp.completed);
+                const moduleQuizzes = mod.quizzes || [];
+                const hasQuizzes = moduleQuizzes.length > 0;
+                const passedAllQuizzes = moduleQuizzes.every(q => passedQuizzes.includes(q.id));
+                const canMarkCompleted = !hasQuizzes || passedAllQuizzes;
+
                 return (
                   <div key={mod.id} className="card">
                     <div className="card-body" style={{ padding: "14px 20px" }}>
@@ -215,8 +226,15 @@ export default function StudentCourseDetailPage({ params }) {
                               type="checkbox"
                               checked={isModCompleted}
                               onChange={(e) => toggleModuleMutation.mutate({ moduleId: mod.id, completed: e.target.checked })}
-                              disabled={toggleModuleMutation.isPending}
-                              style={{ width: 20, height: 20, cursor: "pointer", accentColor: "var(--color-primary)" }}
+                              disabled={toggleModuleMutation.isPending || !canMarkCompleted}
+                              title={!canMarkCompleted ? "You must pass all module quizzes before completing this module" : ""}
+                              style={{
+                                width: 20,
+                                height: 20,
+                                cursor: canMarkCompleted ? "pointer" : "not-allowed",
+                                accentColor: "var(--color-primary)",
+                                opacity: canMarkCompleted ? 1 : 0.5
+                              }}
                             />
                           </div>
                         )}
@@ -240,6 +258,46 @@ export default function StudentCourseDetailPage({ params }) {
                                     ></iframe>
                                   </div>
                                 </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {isEnrolled && mod.quizzes && mod.quizzes.length > 0 && (
+                            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, borderTop: "1px solid var(--color-border-light)", paddingTop: 12 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Module Quizzes</div>
+                              {mod.quizzes.map(quiz => (
+                                <Link
+                                  key={quiz.id}
+                                  href={`/student/quiz/${quiz.id}`}
+                                  className="flex items-center justify-between p-3"
+                                  style={{
+                                    background: "var(--color-bg-white)",
+                                    border: "1px solid var(--color-border)",
+                                    borderRadius: "var(--radius-md)",
+                                    textDecoration: "none",
+                                    color: "inherit",
+                                    transition: "all var(--transition-fast)"
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                                    e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = "var(--color-border)";
+                                    e.currentTarget.style.boxShadow = "none";
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <ClipboardList size={16} className="text-primary" />
+                                    <div>
+                                      <div style={{ fontWeight: 500, fontSize: 14 }}>{quiz.title}</div>
+                                      <div style={{ fontSize: 12, color: "var(--color-muted)" }}>
+                                        Passing Marks: {(quiz.passing_marks ?? 40) / 100 * (quiz.total_marks ?? 10)}/{(quiz.total_marks ?? 10)} ({(quiz.passing_marks ?? 40)}%) {quiz.time_limit ? `| Time Limit: ${quiz.time_limit} mins` : ""}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="btn btn-sm btn-primary">Take Quiz</div>
+                                </Link>
                               ))}
                             </div>
                           )}
@@ -315,8 +373,13 @@ export default function StudentCourseDetailPage({ params }) {
           {/* Get Certificate Button */}
           {isEnrolled && (
             <div style={{ marginTop: 24, marginBottom: 40 }}>
+              {progress?.completed && progressData?.allAssignmentsGraded === false && (
+                <div style={{ marginBottom: 12, padding: 12, background: "var(--color-bg-warning, #fff8e1)", color: "var(--color-warning, #f57f17)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-warning, #f57f17)", fontSize: 14 }}>
+                  <span style={{ fontWeight: 600 }}>Note:</span> You have completed the course, but some assignments are still awaiting grading. You will be able to generate your certificate once all assignments have been graded by an instructor.
+                </div>
+              )}
               <button 
-                className={`btn ${progress?.completed ? 'btn-primary' : 'btn-outline'}`}
+                className={`btn ${(progress?.completed && progressData?.allAssignmentsGraded !== false) ? 'btn-primary' : 'btn-outline'}`}
                 onClick={handleGetCertificate}
                 style={{ width: "100%", padding: "14px", fontSize: "16px", display: "flex", justifyContent: "center", alignItems: "center", gap: 10 }}
               >

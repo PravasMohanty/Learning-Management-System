@@ -7,8 +7,7 @@ const createAssignment = async (req, res) => {
             description,
             course_id,
             due_date,
-            max_marks,
-            attachment_url
+            max_marks
         } = req.body;
 
         const { data, error } = await supabase
@@ -20,7 +19,6 @@ const createAssignment = async (req, res) => {
                     course_id,
                     due_date,
                     max_marks,
-                    attachment_url,
                     created_by: req.user.id
                 }
             ])
@@ -152,8 +150,7 @@ const submitAssignment = async (req, res) => {
         const { assignmentId } = req.params;
 
         const {
-            submission_url,
-            remarks
+            submission_url
         } = req.body;
 
         const { data, error } = await supabase
@@ -163,7 +160,7 @@ const submitAssignment = async (req, res) => {
                     assignment_id: assignmentId,
                     student_id: req.user.id,
                     submission_url,
-                    remarks
+                    status: "submitted"
                 }
             ])
             .select()
@@ -190,14 +187,23 @@ const getSubmissions = async (req, res) => {
 
         const { data, error } = await supabase
             .from("assignment_submissions")
-            .select("*")
+            .select(`
+                *,
+                student:profiles(id, name, email)
+            `)
             .eq("assignment_id", assignmentId);
 
         if (error) throw error;
 
+        // Map grade to marks for frontend compatibility
+        const formattedData = (data || []).map(sub => ({
+            ...sub,
+            marks: sub.grade
+        }));
+
         return res.status(200).json({
             success: true,
-            data,
+            data: formattedData,
         });
     } catch (err) {
         return res.status(500).json({
@@ -219,8 +225,9 @@ const gradeSubmission = async (req, res) => {
         const { data, error } = await supabase
             .from("assignment_submissions")
             .update({
-                marks,
-                feedback
+                grade: marks,
+                feedback,
+                status: "graded"
             })
             .eq("id", submissionId)
             .select()
@@ -228,10 +235,42 @@ const gradeSubmission = async (req, res) => {
 
         if (error) throw error;
 
+        // Map grade to marks for frontend compatibility
+        const formattedData = data ? { ...data, marks: data.grade } : null;
+
         return res.status(200).json({
             success: true,
             message: "Submission graded successfully",
-            data,
+            data: formattedData,
+        });
+    } catch (err) {
+        return res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
+
+const getMySubmission = async (req, res) => {
+    try {
+        const { assignmentId } = req.params;
+        const studentId = req.user.id;
+
+        const { data, error } = await supabase
+            .from("assignment_submissions")
+            .select("*")
+            .eq("assignment_id", assignmentId)
+            .eq("student_id", studentId)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        // Map grade to marks for frontend compatibility
+        const submission = data ? { ...data, marks: data.grade } : null;
+
+        return res.status(200).json({
+            success: true,
+            data: submission
         });
     } catch (err) {
         return res.status(500).json({
@@ -250,6 +289,7 @@ module.exports = {
     getAssignments,
 
     submitAssignment,
+    getMySubmission,
 
     getAssignmentSubmissions: getSubmissions,
 

@@ -1,53 +1,72 @@
 "use client";
 
-import { use, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { use, useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { assignmentAPI } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import PageContainer from "@/components/layout/PageContainer";
-import { Textarea } from "@/components/ui/Input";
 import { SkeletonLine } from "@/components/ui/Skeleton";
+import Badge from "@/components/ui/Badge";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { ArrowLeft, Send, CheckCircle } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle, Clock, FileText, ExternalLink } from "lucide-react";
 
 const submitSchema = z.object({
-  content: z.string().min(1, "Submission content is required"),
-  attachment_url: z.string().url("Must be a valid URL").or(z.literal("")).optional(),
+  submission_url: z.string().url("Must be a valid URL (e.g. https://drive.google.com/...)"),
 });
 
 export default function AssignmentDetailPage({ params }) {
   const { assignmentId } = use(params);
-  const [submitted, setSubmitted] = useState(false);
+  const queryClient = useQueryClient();
+  const [isResubmitting, setIsResubmitting] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data: assignmentData, isLoading: loadingAssignment } = useQuery({
     queryKey: ["assignment", assignmentId],
     queryFn: () => assignmentAPI.getById(assignmentId),
     enabled: !!assignmentId,
   });
 
-  const assignment = data?.data;
+  const { data: submissionData, isLoading: loadingSubmission, refetch: refetchSubmission } = useQuery({
+    queryKey: ["assignment-submission", assignmentId],
+    queryFn: () => assignmentAPI.getMySubmission(assignmentId),
+    enabled: !!assignmentId,
+  });
+
+  const assignment = assignmentData?.data;
+  const submission = submissionData?.data;
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(submitSchema),
-    defaultValues: { content: "", attachment_url: "" },
+    defaultValues: { submission_url: "" },
   });
+
+  // Prepopulate URL if resubmitting
+  useEffect(() => {
+    if (submission?.submission_url) {
+      setValue("submission_url", submission.submission_url);
+    }
+  }, [submission, setValue]);
 
   const mutation = useMutation({
     mutationFn: (formData) => assignmentAPI.submit(assignmentId, formData),
     onSuccess: (res) => {
       if (!res.success) { toast.error(res.message); return; }
       toast.success("Assignment submitted successfully");
-      setSubmitted(true);
+      setIsResubmitting(false);
+      queryClient.invalidateQueries({ queryKey: ["assignment-submission", assignmentId] });
+      refetchSubmission();
     },
     onError: (err) => toast.error(err.message || "Submission failed"),
   });
+
+  const isLoading = loadingAssignment || loadingSubmission;
 
   return (
     <PageContainer
@@ -72,89 +91,165 @@ export default function AssignmentDetailPage({ params }) {
           {/* Assignment Info */}
           <div className="card" style={{ marginBottom: 24 }}>
             <div className="card-body">
-              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center" }}>
                 {assignment?.max_marks && (
                   <div>
                     <span className="text-sm text-muted">Max Marks: </span>
-                    <span className="font-semibold">{assignment.max_marks}</span>
+                    <span className="font-semibold" style={{ fontSize: 16 }}>{assignment.max_marks}</span>
                   </div>
                 )}
                 {assignment?.due_date && (
-                  <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Clock size={16} className="text-muted" />
                     <span className="text-sm text-muted">Due Date: </span>
                     <span className="font-semibold">
                       {new Date(assignment.due_date).toLocaleDateString("en-US", {
                         month: "long",
                         day: "numeric",
                         year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit"
                       })}
                     </span>
                   </div>
                 )}
               </div>
-              {assignment?.attachment_url && (
-                <div style={{ marginTop: 12 }}>
-                  <a
-                    href={assignment.attachment_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-outline btn-sm"
-                  >
-                    View Attachment
-                  </a>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Submission Form */}
-          {submitted ? (
-            <div className="card">
-              <div className="card-body" style={{ textAlign: "center", padding: 40 }}>
-                <CheckCircle size={40} style={{ color: "var(--color-success)", marginBottom: 12 }} />
-                <h3 style={{ marginBottom: 4 }}>Submitted!</h3>
-                <p className="text-muted">Your assignment has been submitted successfully.</p>
-                <Link href="/student/assignments" className="btn btn-primary btn-sm" style={{ marginTop: 16 }}>
-                  Back to Assignments
-                </Link>
+          {/* Submission and Grading State */}
+          {submission && !isResubmitting ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* Submission Details Card */}
+              <div className="card">
+                <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h4>Your Submission</h4>
+                  <Badge variant={submission.status === "graded" ? "completed" : "pending"}>
+                    {submission.status === "graded" ? "Graded" : "Submitted"}
+                  </Badge>
+                </div>
+                <div className="card-body">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div>
+                      <div className="text-sm text-muted" style={{ marginBottom: 4 }}>Submission Link:</div>
+                      <a
+                        href={submission.submission_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "underline" }}
+                      >
+                        {submission.submission_url} <ExternalLink size={14} />
+                      </a>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted" style={{ marginBottom: 4 }}>Submitted on:</div>
+                      <div className="font-medium">
+                        {new Date(submission.submitted_at).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </div>
+                    </div>
+                    {submission.status !== "graded" && (
+                      <div style={{ marginTop: 8 }}>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setIsResubmitting(true)}
+                        >
+                          Edit Submission
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Feedback Card if Graded */}
+              {submission.status === "graded" && (
+                <div className="card" style={{ borderColor: "var(--color-success)" }}>
+                  <div className="card-header" style={{ background: "var(--color-success-bg)" }}>
+                    <h4 style={{ color: "var(--color-success)" }}>Grade & Feedback</h4>
+                  </div>
+                  <div className="card-body">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div>
+                        <span className="text-muted">Grade Awarded: </span>
+                        <strong style={{ fontSize: 20, color: "var(--color-success)" }}>
+                          {submission.marks}
+                        </strong>
+                        <span className="text-muted"> / {assignment?.max_marks || 100} marks</span>
+                      </div>
+                      {submission.feedback ? (
+                        <div>
+                          <div className="text-sm text-muted" style={{ marginBottom: 4 }}>Instructor Feedback:</div>
+                          <div
+                            style={{
+                              padding: 12,
+                              background: "var(--color-bg)",
+                              borderRadius: 6,
+                              lineHeight: 1.6,
+                              fontStyle: "italic"
+                            }}
+                          >
+                            "{submission.feedback}"
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-muted text-sm">No feedback text provided.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
+            /* Submission Form */
             <div className="card">
               <div className="card-header">
-                <h4>Submit Your Work</h4>
+                <h4>{isResubmitting ? "Edit Your Submission" : "Submit Your Work"}</h4>
               </div>
               <div className="card-body">
                 <form onSubmit={handleSubmit((d) => mutation.mutate(d))} noValidate>
-                  <Textarea
-                    label="Your Answer / Submission"
-                    placeholder="Write your response here..."
-                    error={errors.content?.message}
-                    style={{ minHeight: 160 }}
-                    {...register("content")}
-                  />
                   <div className="form-group">
                     <label className="form-label">
-                      Attachment URL <span className="form-label-optional">(optional)</span>
+                      Submission URL Link <span className="text-error">*</span>
                     </label>
                     <input
-                      className={`form-input ${errors.attachment_url ? "error" : ""}`}
-                      placeholder="https://drive.google.com/..."
-                      {...register("attachment_url")}
+                      className={`form-input ${errors.submission_url ? "error" : ""}`}
+                      placeholder="e.g. https://drive.google.com/drive/folders/... or link to your work"
+                      {...register("submission_url")}
                     />
-                    {errors.attachment_url && (
-                      <div className="form-error">{errors.attachment_url.message}</div>
+                    {errors.submission_url && (
+                      <div className="form-error">{errors.submission_url.message}</div>
                     )}
-                    <div className="form-hint">Link to any supporting files (Google Drive, Dropbox, etc.)</div>
+                    <div className="form-hint" style={{ marginTop: 8 }}>
+                      Please provide a valid, public URL (Google Drive, GitHub repo, public PDF, etc.) where instructors can view your work.
+                    </div>
                   </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={mutation.isPending}
-                  >
-                    <Send size={16} />
-                    {mutation.isPending ? "Submitting..." : "Submit Assignment"}
-                  </button>
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={mutation.isPending}
+                    >
+                      <Send size={16} />
+                      {mutation.isPending ? "Submitting..." : (isResubmitting ? "Update Submission" : "Submit Assignment")}
+                    </button>
+                    {isResubmitting && (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => setIsResubmitting(false)}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
             </div>

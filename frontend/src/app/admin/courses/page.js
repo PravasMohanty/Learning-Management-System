@@ -10,7 +10,7 @@ import Modal from "@/components/ui/Modal";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Plus, Eye, Pencil, Trash2, Globe } from "lucide-react";
+import { Plus, Pencil, Trash2, Globe } from "lucide-react";
 
 export default function AdminCoursesPage() {
   const router = useRouter();
@@ -90,16 +90,6 @@ export default function AdminCoursesPage() {
         <div className="data-table-actions">
           <button
             className="btn-icon"
-            title="View course"
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/admin/courses/${row.id}`);
-            }}
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            className="btn-icon"
             title="Edit course"
             onClick={(e) => {
               e.stopPropagation();
@@ -154,6 +144,7 @@ export default function AdminCoursesPage() {
         searchPlaceholder="Search courses..."
         emptyTitle="No courses yet"
         emptyDescription="Create your first course to get started."
+        onRowClick={(row) => router.push(`/admin/courses/${row.id}`)}
       />
 
       <Modal

@@ -145,6 +145,9 @@ const getCourseModules = async (req, res) => {
         *,
         module_videos (
           *
+        ),
+        quizzes (
+          *
         )
       `)
       .eq("course_id", courseId)

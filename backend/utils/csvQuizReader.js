@@ -26,19 +26,37 @@ const readQuizCSV = async (filePath) => {
             return;
           }
 
+          const questionText = values[0] ? values[0].trim() : "";
+          const optA = values[1] ? values[1].trim() : "";
+          const optB = values[2] ? values[2].trim() : "";
+          const optC = values[3] ? values[3].trim() : "";
+          const optD = values[4] ? values[4].trim() : "";
+          const answerText = values[5] ? values[5].trim() : "";
+
+          let correctOption = "A";
+          if (answerText.toLowerCase() === optA.toLowerCase()) {
+            correctOption = "A";
+          } else if (answerText.toLowerCase() === optB.toLowerCase()) {
+            correctOption = "B";
+          } else if (answerText.toLowerCase() === optC.toLowerCase()) {
+            correctOption = "C";
+          } else if (answerText.toLowerCase() === optD.toLowerCase()) {
+            correctOption = "D";
+          } else {
+            const ansUpper = answerText.toUpperCase();
+            if (["A", "B", "C", "D"].includes(ansUpper)) {
+              correctOption = ansUpper;
+            }
+          }
+
           questions.push({
-            question: values[0],
-
-            options: [
-              values[1],
-              values[2],
-              values[3],
-              values[4],
-            ],
-
-            correct_answer: values[5],
-
-            points: process.env.QUIZ_POINTS_PER_QUESTION || 10,
+            question: questionText,
+            option_a: optA,
+            option_b: optB,
+            option_c: optC,
+            option_d: optD,
+            correct_option: correctOption,
+            marks: 1
           });
         })
 

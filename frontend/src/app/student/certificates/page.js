@@ -69,8 +69,8 @@ export default function StudentCertificatesPage() {
   const handleDownload = async (certId) => {
     try {
       const res = await certificateAPI.download(certId);
-      if (res?.url) {
-        window.open(res.url, "_blank");
+      if (res?.downloadUrl || res?.url) {
+        window.open(res.downloadUrl || res.url, "_blank");
       } else {
         toast.success("Certificate download initiated");
       }

@@ -43,6 +43,41 @@ const generateCertificate = async (req, res) => {
     }
 
     // ==========================================
+    // CHECK GRADED ASSIGNMENTS
+    // ==========================================
+
+    const { data: assignments, error: assignmentsError } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("course_id", courseId);
+
+    if (assignmentsError) throw assignmentsError;
+
+    if (assignments && assignments.length > 0) {
+      const assignmentIds = assignments.map(a => a.id);
+
+      const { data: submissions, error: submissionsError } = await supabase
+        .from("assignment_submissions")
+        .select("assignment_id, status")
+        .eq("student_id", studentId)
+        .in("assignment_id", assignmentIds);
+
+      if (submissionsError) throw submissionsError;
+
+      const allGraded = assignmentIds.every(aId => {
+        const sub = (submissions || []).find(s => s.assignment_id === aId);
+        return sub && sub.status === "graded";
+      });
+
+      if (!allGraded) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot generate certificate: You have ungraded or unsubmitted assignments.",
+        });
+      }
+    }
+
+    // ==========================================
     // CHECK EXISTING CERTIFICATE
     // ==========================================
 

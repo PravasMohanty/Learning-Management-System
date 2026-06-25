@@ -19,7 +19,6 @@ const assignmentSchema = z.object({
   description: z.string().optional(),
   due_date: z.string().optional(),
   max_marks: z.coerce.number().min(0).optional(),
-  attachment_url: z.string().url().or(z.literal("")).optional(),
 });
 
 const gradeSchema = z.object({
@@ -47,7 +46,7 @@ export default function CourseAssignmentsPage({ params }) {
 
   const createForm = useForm({
     resolver: zodResolver(assignmentSchema),
-    defaultValues: { title: "", description: "", due_date: "", max_marks: 100, attachment_url: "" },
+    defaultValues: { title: "", description: "", due_date: "", max_marks: 100 },
   });
 
   const gradeForm = useForm({
@@ -182,7 +181,6 @@ export default function CourseAssignmentsPage({ params }) {
           <Input label="Due Date" type="date" optional {...createForm.register("due_date")} />
           <Input label="Max Marks" type="number" {...createForm.register("max_marks")} />
         </div>
-        <Input label="Attachment URL" optional placeholder="https://..." {...createForm.register("attachment_url")} />
       </Modal>
 
       {/* Submissions Modal */}
@@ -203,6 +201,7 @@ export default function CourseAssignmentsPage({ params }) {
                 <tr>
                   <th>Student</th>
                   <th>Submitted</th>
+                  <th>Submission</th>
                   <th>Marks</th>
                   <th>Action</th>
                 </tr>
@@ -210,9 +209,27 @@ export default function CourseAssignmentsPage({ params }) {
               <tbody>
                 {submissions.map((sub) => (
                   <tr key={sub.id}>
-                    <td>{sub.student_id?.substring(0, 8)}...</td>
-                    <td>{sub.created_at ? new Date(sub.created_at).toLocaleDateString() : "—"}</td>
-                    <td>{sub.marks != null ? sub.marks : <span className="text-muted">Ungraded</span>}</td>
+                    <td>
+                      <strong>{sub.student?.name || "Student"}</strong>
+                      <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{sub.student?.email}</div>
+                    </td>
+                    <td>{sub.submitted_at || sub.created_at ? new Date(sub.submitted_at || sub.created_at).toLocaleDateString() : "—"}</td>
+                    <td>
+                      {sub.submission_url ? (
+                        <a
+                          href={sub.submission_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline"
+                          style={{ display: "inline-flex", gap: 4 }}
+                        >
+                          View Work
+                        </a>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td>{sub.marks != null ? `${sub.marks} marks` : <span className="text-muted">Ungraded</span>}</td>
                     <td>
                       <button
                         className="btn btn-sm btn-outline"

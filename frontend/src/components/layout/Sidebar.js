@@ -14,22 +14,53 @@ import {
   UserCircle,
   LogOut,
   X,
+  Upload,
 } from "lucide-react";
 
 const adminNav = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Users", href: "/admin/users", icon: Users },
-  { label: "Students", href: "/admin/students", icon: UserPlus },
-  { label: "Courses", href: "/admin/courses", icon: BookOpen },
-  { label: "Certificates", href: "/admin/certificates", icon: Award },
+  {
+    section: "Overview",
+    items: [
+      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+    ]
+  },
+  {
+    section: "Learning Management",
+    items: [
+      { label: "Courses", href: "/admin/courses", icon: BookOpen },
+      { label: "Certificates", href: "/admin/certificates", icon: Award },
+    ]
+  },
+  {
+    section: "User Management",
+    items: [
+      { label: "All Users", href: "/admin/users", icon: Users },
+      { label: "Students", href: "/admin/students", icon: UserPlus },
+    ]
+  }
 ];
 
 const studentNav = [
-  { label: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
-  { label: "Courses", href: "/student/courses", icon: BookOpen },
-  { label: "Assignments", href: "/student/assignments", icon: ClipboardList },
-  { label: "Certificates", href: "/student/certificates", icon: Award },
-  { label: "Profile", href: "/student/profile", icon: UserCircle },
+  {
+    section: "Overview",
+    items: [
+      { label: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
+    ]
+  },
+  {
+    section: "My Learning",
+    items: [
+      { label: "Courses", href: "/student/courses", icon: BookOpen },
+      { label: "Assignments", href: "/student/assignments", icon: ClipboardList },
+      { label: "Certificates", href: "/student/certificates", icon: Award },
+    ]
+  },
+  {
+    section: "Settings",
+    items: [
+      { label: "Profile", href: "/student/profile", icon: UserCircle },
+    ]
+  }
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -84,21 +115,27 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Navigation */}
         <nav className="sidebar-nav">
-          <div className="sidebar-section-label">{sectionLabel}</div>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`sidebar-link ${isActive(item.href) ? "active" : ""}`}
-                onClick={onClose}
-              >
-                <Icon size={20} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+          {navItems.map((group, i) => (
+            <div key={i} style={{ marginBottom: "1.5rem" }}>
+              <div className="sidebar-section-label" style={{ paddingLeft: "12px", marginBottom: "8px", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-muted)" }}>
+                {group.section}
+              </div>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`sidebar-link ${isActive(item.href) ? "active" : ""}`}
+                    onClick={onClose}
+                  >
+                    <Icon size={20} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Footer with user info */}
