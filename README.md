@@ -40,12 +40,19 @@ A comprehensive, full-stack Learning Management System built to facilitate struc
 
 ## 📸 Screenshots
 
-To make this README truly shine on platforms like GitHub, **we should absolutely include screenshots!** I recommend adding screenshots for the following key areas:
+Here is a look at the platform in action:
 
-1.  **Student Course Viewer**: Showcasing the video player, quiz lists, and the module progress checkboxes.
-2.  **Admin Quiz Attempt Report**: Demonstrating the data table showing student scores and pass/fail badges.
-3.  **Assignment Grading View**: Showing the instructor interface for grading a student's submission.
-4.  **Certificate Error State**: A screenshot showing the warning note when a student tries to get a certificate while assignments are still ungraded.
-5.  **Generated PDF Certificate**: A sample of the final generated certificate.
+### Student Course Viewer
+![Course Page](frontend/public/docs/Course%20Page.png)
 
-*(Once you take these screenshots, you can place them in a `public/docs` folder or similar, and I can help you embed them directly into this README!)*
+### Admin Dashboard
+![Admin Dashboard](frontend/public/docs/Admin%20Dashboard.png)
+
+### Quiz Attempt Report
+![Quiz Report](frontend/public/docs/Quiz%20Report.png)
+
+### Student Request Review
+![Student Request Review](frontend/public/docs/Student%20Request%20Review.png)
+
+### Generated Certificate
+![Certificate](frontend/public/docs/Certificate.png)
